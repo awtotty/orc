@@ -8,6 +8,8 @@ src/orc/project.py
 src/orc/roles.py
 src/orc/room.py
 src/orc/tmux.py
+src/orc/universe.py
+src/orc/web.py
 src/orc.egg-info/PKG-INFO
 src/orc.egg-info/SOURCES.txt
 src/orc.egg-info/dependency_links.txt

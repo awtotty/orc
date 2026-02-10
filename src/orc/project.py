@@ -132,8 +132,13 @@ class OrcProject:
                 with open(role_path) as f:
                     role_prompt = f.read()
             tmux.create(cwd=cwd)
-            tmux.start_claude(role_prompt, message=message)
+            tmux.start_claude(role_prompt)
             room.set_status("active")
+
+            if message:
+                import time
+                time.sleep(3)
+                tmux.send_keys(message)
 
         tmux.attach()
         attach_orc_session()

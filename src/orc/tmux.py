@@ -106,13 +106,10 @@ class RoomSession:
                 capture_output=True,
             )
 
-    def start_claude(self, role_prompt, message=None):
+    def start_claude(self, role_prompt):
         """Start Claude Code in this room's window."""
         cmd = "claude"
         if role_prompt:
             escaped = role_prompt.replace("'", "'\\''")
             cmd += f" --append-system-prompt $'{escaped}'"
-        if message:
-            escaped_msg = message.replace("'", "'\\''")
-            cmd += f" --yes -m $'{escaped_msg}'"
         self.send_keys(cmd)
