@@ -7,7 +7,7 @@ import click
 
 from orc.room import Room
 from orc.roles import default_role_content, ROLES_DIR
-from orc.tmux import TmuxSession
+from orc.tmux import RoomSession, open_window, attach_orc_session
 
 
 def find_project_root(start=None):
@@ -26,6 +26,7 @@ class OrcProject:
     def __init__(self, root):
         self.root = root
         self.orc_dir = os.path.join(root, ".orc")
+        self.project_name = os.path.basename(root)
 
     def is_initialized(self):
         return os.path.isdir(self.orc_dir)
@@ -113,7 +114,7 @@ class OrcProject:
             with open(role_path) as f:
                 role_prompt = f.read()
 
-        tmux = TmuxSession(room_name)
+        tmux = RoomSession(self.project_name, room_name)
         tmux.create(cwd=worktree_path)
         tmux.start_claude(role_prompt, message=message)
 
@@ -123,7 +124,7 @@ class OrcProject:
             click.echo(f"Error: room '{room_name}' does not exist", err=True)
             sys.exit(1)
 
-        tmux = TmuxSession(room_name)
+        tmux = RoomSession(self.project_name, room_name)
         if not tmux.is_alive():
             # Recreate session and restart agent
             cwd = self._room_cwd(room_name)
@@ -140,6 +141,7 @@ class OrcProject:
             click.echo(f"Restarted agent in '{room_name}'")
 
         tmux.attach()
+        attach_orc_session()
 
     def edit_room(self, room_name):
         room = Room(self.orc_dir, room_name)
@@ -149,7 +151,9 @@ class OrcProject:
 
         editor = os.environ.get("EDITOR", "vi")
         cwd = self._room_cwd(room_name)
-        os.execlp(editor, editor, cwd)
+        window_name = f"{self.project_name}-{room_name.lstrip('@')}-edit"
+        open_window(window_name, cwd, f"{editor} .")
+        attach_orc_session()
 
     def list_rooms(self):
         if not os.path.isdir(self.orc_dir):
@@ -164,7 +168,7 @@ class OrcProject:
                 status = room.read_status().get("status", "unknown")
                 agent = room.read_agent()
                 role = agent.get("role", "unknown")
-                tmux = TmuxSession(entry)
+                tmux = RoomSession(self.project_name, entry)
                 alive = tmux.is_alive()
                 rooms.append((entry, role, status, alive))
 
@@ -190,7 +194,7 @@ class OrcProject:
             sys.exit(1)
 
         # Kill tmux session
-        tmux = TmuxSession(room_name)
+        tmux = RoomSession(self.project_name, room_name)
         tmux.kill()
 
         # Remove git worktree
