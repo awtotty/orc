@@ -39,6 +39,10 @@ Each room has a `status.json` with one of: `active`, `ready`, `blocked`, `done`,
 
 Update your own status as your situation changes.
 
+**IMPORTANT:** Set your status to `blocked` BEFORE you ask the user a question or request
+permission approval. A human monitors the dashboard for `blocked` status to know where
+intervention is needed. Set it back to `active` once you resume work.
+
 ## Molecules and Atoms
 
 Work items live in `molecules/` directories as JSON files.
