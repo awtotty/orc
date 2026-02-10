@@ -7,9 +7,7 @@ import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 
-from orc.roles import _ORC_ROOT
-
-PROJECTS_DIR = os.path.join(_ORC_ROOT, "projects")
+from orc.universe import Universe
 
 
 # ---------------------------------------------------------------------------
@@ -30,16 +28,10 @@ def _read_json(path):
 
 def discover_projects():
     """Return {name: abs_path} for every orc-initialised project."""
-    projects = {}
+    uni = Universe()
+    projects = uni.discover()
 
-    # Scan PROJECTS_DIR
-    if os.path.isdir(PROJECTS_DIR):
-        for entry in sorted(os.listdir(PROJECTS_DIR)):
-            p = os.path.join(PROJECTS_DIR, entry)
-            if os.path.isdir(os.path.join(p, ".orc")):
-                projects[entry] = p
-
-    # Walk up from cwd to find git root
+    # Also check cwd for a local project not in the universe
     from orc.project import find_project_root
 
     root = find_project_root()

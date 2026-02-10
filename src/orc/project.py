@@ -209,6 +209,43 @@ class OrcProject:
         # Remove room files
         room.delete()
 
+    def clean(self):
+        """Remove read inbox messages and completed molecules from all rooms."""
+        total_messages = 0
+        total_molecules = 0
+
+        for entry in sorted(os.listdir(self.orc_dir)):
+            if entry.startswith("."):
+                continue
+            room = Room(self.orc_dir, entry)
+            if not room.exists():
+                continue
+
+            # Clean read inbox messages
+            inbox = room.read_inbox()
+            if isinstance(inbox, list):
+                unread = [m for m in inbox if not m.get("read")]
+                removed = len(inbox) - len(unread)
+                if removed > 0:
+                    room._write_json("inbox.json", unread)
+                    total_messages += removed
+
+            # Clean completed molecules
+            mol_dir = os.path.join(room.path, "molecules")
+            if os.path.isdir(mol_dir):
+                for fname in os.listdir(mol_dir):
+                    if not fname.endswith(".json"):
+                        continue
+                    fpath = os.path.join(mol_dir, fname)
+                    with open(fpath) as f:
+                        mol = json.load(f)
+                    atoms = mol.get("atoms", [])
+                    if atoms and all(a.get("status") == "done" for a in atoms):
+                        os.remove(fpath)
+                        total_molecules += 1
+
+        return total_messages, total_molecules
+
     def _room_cwd(self, room_name):
         if room_name == "@main":
             return self.root

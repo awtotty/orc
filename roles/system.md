@@ -65,3 +65,27 @@ Atom statuses: `todo` → `in_progress` → `done`
 - `@main` operates at the project root
 - Worker rooms operate in git worktrees at `.orc/.worktrees/{room}/` on their own branch
 - Commit work to your branch regularly
+
+## Universe
+
+Your project is part of an **orc universe** — a collection of projects managed together.
+The universe lives at the orc installation's `projects/` directory.
+
+### Cross-project messaging
+
+You can send messages to rooms in **other projects** in the universe. The address format
+for cross-project messages uses `project-name/room-name`:
+
+```json
+{"from": "my-project/@main", "message": "need your API types", "read": false, "ts": "ISO-8601"}
+```
+
+To send a cross-project message from the CLI: `orc send other-project/room -m "message"`
+
+To send one from code, write to `<universe>/projects/<project>/.orc/<room>/inbox.json`.
+
+### Discovering other projects
+
+The human operator manages which projects are in the universe. You can ask the orchestrator
+if you need to coordinate with another project. The orchestrator can see all projects
+via `orc projects`.

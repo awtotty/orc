@@ -12,23 +12,15 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
-from orc.roles import _ORC_ROOT
 from orc.room import Room
 from orc.tmux import RoomSession
-
-PROJECTS_DIR = os.path.join(_ORC_ROOT, "projects")
+from orc.universe import Universe
 
 
 def scan_projects():
-    """List initialized orc projects in the projects directory."""
-    if not os.path.isdir(PROJECTS_DIR):
-        return []
-    projects = []
-    for name in sorted(os.listdir(PROJECTS_DIR)):
-        path = os.path.join(PROJECTS_DIR, name)
-        if os.path.isdir(path) and os.path.isdir(os.path.join(path, ".orc")):
-            projects.append((name, path))
-    return projects
+    """List initialized orc projects in the universe."""
+    uni = Universe()
+    return list(uni.discover().items())
 
 
 def collect_rooms(project_name, project_root):

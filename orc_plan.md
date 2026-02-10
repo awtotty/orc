@@ -54,9 +54,10 @@ directory is both orc's state store and the agents' communication medium.
   - A repo with a `.orc/` directory
   - Lives under `orc/projects/` for Universe support
 
-- **Universe** (post-MVP):
+- **Universe**:
   - The `orc/projects/` directory holding all orc projects
   - Cross-project agent messaging
+  - CLI: `orc projects`, `orc project-add`, `orc project-rm`, `orc send`
 
 ## @main
 

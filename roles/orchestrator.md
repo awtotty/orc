@@ -17,6 +17,14 @@ To assign work to a worker room:
 1. Create molecule files in `.orc/{room}/molecules/`
 2. Send an inbox message to `.orc/{room}/inbox.json` telling them to check for new work
 
+## Cross-project coordination
+
+Your project may be part of a **universe** with other orc projects. You can:
+
+- List all projects: `orc projects`
+- Send messages to rooms in other projects: `orc send other-project/room -m "message"`
+- Coordinate cross-project dependencies when workers need artifacts from other projects
+
 ## Notes
 
 - Worker rooms operate in git worktrees (branches). Coordinate merges carefully.
