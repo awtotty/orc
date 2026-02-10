@@ -353,12 +353,22 @@ function renderRooms(rooms){
         '<span>\u2709 '+r.inbox_count+(r.unread_count?' ('+r.unread_count+' new)':'')+'</span>'+
         '<span>\u25c6 '+r.molecule_count+'</span>'+
       '</div>'+
-      '<button class="toggle" data-room="'+n+'" data-section="inbox">\u25b6 Inbox</button>'+
-      '<div class="panel" data-panel="'+n+'|inbox"></div>'+
-      '<button class="toggle" data-room="'+n+'" data-section="molecules">\u25b6 Molecules</button>'+
-      '<div class="panel" data-panel="'+n+'|molecules"></div>'+
+      '<button class="toggle" data-room="'+n+'" data-section="inbox">\u25bc Inbox</button>'+
+      '<div class="panel open" data-panel="'+n+'|inbox"></div>'+
+      '<button class="toggle" data-room="'+n+'" data-section="molecules">\u25bc Molecules</button>'+
+      '<div class="panel open" data-panel="'+n+'|molecules"></div>'+
     '</div>';
   }).join('');
+  // Load panel contents for all rooms
+  for(const r of rooms){
+    const n=esc(r.name);
+    expanded[n+'|inbox']=true;
+    expanded[n+'|molecules']=true;
+    const ip=document.querySelector('[data-panel="'+CSS.escape(n+'|inbox')+'"]');
+    const mp=document.querySelector('[data-panel="'+CSS.escape(n+'|molecules')+'"]');
+    if(ip) loadPanel(n,'inbox',ip);
+    if(mp) loadPanel(n,'molecules',mp);
+  }
 }
 
 document.addEventListener('click',async e=>{
