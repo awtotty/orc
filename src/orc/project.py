@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -106,6 +107,9 @@ class OrcProject:
             click.echo(f"Error creating worktree: {e.stderr.strip()}", err=True)
             room.delete()
             sys.exit(1)
+
+        # Copy Claude Code permissions to worktree
+        self._copy_claude_settings(worktree_path)
 
         # Create tmux session and start Claude Code
         role_path = os.path.join(self.orc_dir, ROLES_DIR, f"{role}.md")
@@ -245,6 +249,15 @@ class OrcProject:
                         total_molecules += 1
 
         return total_messages, total_molecules
+
+    def _copy_claude_settings(self, worktree_path):
+        """Copy .claude/settings.local.json from project root to worktree."""
+        src = os.path.join(self.root, ".claude", "settings.local.json")
+        if not os.path.exists(src):
+            return
+        dst_dir = os.path.join(worktree_path, ".claude")
+        os.makedirs(dst_dir, exist_ok=True)
+        shutil.copy2(src, os.path.join(dst_dir, "settings.local.json"))
 
     def _room_cwd(self, room_name):
         if room_name == "@main":
