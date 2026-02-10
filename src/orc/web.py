@@ -7,6 +7,7 @@ import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote
 
+from orc.project import OrcProject
 from orc.universe import Universe
 
 
@@ -148,8 +149,16 @@ body{
   padding:20px;font-size:22px;font-weight:700;color:var(--accent);
   border-bottom:1px solid var(--border);letter-spacing:3px
 }
+.group-header{
+  padding:12px 20px;font-size:12px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;cursor:pointer;
+  display:flex;align-items:center;gap:6px;user-select:none
+}
+.group-header:hover{color:var(--text)}
+.group-arrow{font-size:10px;transition:transform .15s}
+.group-arrow.collapsed{transform:rotate(-90deg)}
 .proj{
-  padding:12px 20px;cursor:pointer;border-left:3px solid transparent;
+  padding:10px 20px 10px 34px;cursor:pointer;border-left:3px solid transparent;
   font-size:14px;transition:all .15s
 }
 .proj:hover{background:var(--surface2)}
@@ -207,6 +216,33 @@ body{
   background:var(--green);opacity:.5;transition:opacity .3s
 }
 .dot.loading{opacity:1;background:var(--accent)}
+.content-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.content-header h2{font-size:20px;font-weight:600;flex:1}
+.btn{
+  padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;
+  font-family:inherit;transition:all .15s
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{color:var(--red);font-size:12px;padding:4px 10px}
+.btn-danger:hover{border-color:var(--red);background:rgba(248,81,73,.1)}
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;
+  align-items:center;justify-content:center;z-index:100;display:none
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:24px;width:360px;max-width:90vw
+}
+.modal h3{margin-bottom:16px;font-size:16px}
+.modal label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.modal input,.modal select{
+  width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;
+  margin-bottom:12px
+}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 </style>
 </head>
 <body>
@@ -216,7 +252,24 @@ body{
 </nav>
 <div id="content">
   <div id="placeholder">Select a project</div>
+  <div id="content-header" class="content-header" style="display:none">
+    <h2 id="project-title"></h2>
+    <button class="btn" onclick="showAddRoom()">+ Add Room</button>
+  </div>
   <div id="rooms" class="grid" style="display:none"></div>
+</div>
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <h3>Add Room</h3>
+    <label>Room name</label>
+    <input id="add-room-name" placeholder="e.g. worker-2">
+    <label>Role</label>
+    <select id="add-room-role"><option value="worker">worker</option><option value="orchestrator">orchestrator</option></select>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideAddRoom()">Cancel</button>
+      <button class="btn" onclick="doAddRoom()">Add</button>
+    </div>
+  </div>
 </div>
 <div class="dot" id="dot"></div>
 <script>
@@ -234,14 +287,24 @@ async function init(){
   projects=await api('/api/projects');
   renderSidebar();
   const names=Object.keys(projects);
-  if(names.length&&!selected) await sel(names[0]);
+  const saved=localStorage.getItem('orc-selected-project');
+  if(names.length&&!selected) await sel(saved&&names.includes(saved)?saved:names[0]);
   setInterval(refresh,5000);
 }
 
+let sidebarCollapsed=false;
 function renderSidebar(){
   const el=$('project-list');
   el.innerHTML='';
-  for(const name of Object.keys(projects)){
+  const names=Object.keys(projects);
+  if(!names.length) return;
+  const hdr=document.createElement('div');
+  hdr.className='group-header';
+  hdr.innerHTML='<span class="group-arrow'+(sidebarCollapsed?' collapsed':'')+'">&#9660;</span> orc';
+  hdr.onclick=()=>{sidebarCollapsed=!sidebarCollapsed;renderSidebar()};
+  el.appendChild(hdr);
+  if(sidebarCollapsed) return;
+  for(const name of names){
     const d=document.createElement('div');
     d.className='proj'+(selected===name?' active':'');
     d.textContent=name;
@@ -253,6 +316,7 @@ function renderSidebar(){
 async function sel(name){
   selected=name;expanded={};
   selVersion++;
+  localStorage.setItem('orc-selected-project',name);
   renderSidebar();
   await loadRooms();
 }
@@ -267,6 +331,8 @@ async function loadRooms(){
 
 function renderRooms(rooms){
   $('placeholder').style.display='none';
+  $('content-header').style.display='flex';
+  $('project-title').textContent=selected;
   const el=$('rooms');
   el.style.display='grid';
   el.innerHTML=rooms.map(r=>{
@@ -274,11 +340,13 @@ function renderRooms(rooms){
     const tc=r.tmux?'alive':'dead';
     const tl=r.tmux?'\u25cf live':'\u25cb dead';
     const n=esc(r.name);
+    const isMain=r.name==='@main';
     return '<div class="card">'+
       '<div class="card-head">'+
         '<span class="card-name">'+n+'</span>'+
         '<span class="badge '+sc+'">'+r.status+'</span>'+
         '<span class="tmux '+tc+'">'+tl+'</span>'+
+        (isMain?'':'<button class="btn btn-danger" onclick="doRmRoom(\''+n.replace(/'/g,"\\'")+'\')">Remove</button>')+
       '</div>'+
       '<div class="meta">'+
         '<span>'+esc(r.role)+'</span>'+
@@ -382,6 +450,25 @@ async function refresh(){
   dot.classList.remove('loading');
 }
 
+function showAddRoom(){$('modal-add').classList.add('open');$('add-room-name').value='';$('add-room-name').focus()}
+function hideAddRoom(){$('modal-add').classList.remove('open')}
+async function doAddRoom(){
+  const name=$('add-room-name').value.trim();
+  const role=$('add-room-role').value;
+  if(!name) return;
+  hideAddRoom();
+  await fetch('/api/projects/'+enc(selected)+'/rooms/add',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({room_name:name,role:role})
+  });
+  await loadRooms();
+}
+async function doRmRoom(name){
+  if(!confirm('Remove room "'+name+'"? This will delete the worktree and kill its tmux session.')) return;
+  await fetch('/api/projects/'+enc(selected)+'/rooms/'+enc(name)+'/rm',{method:'POST'});
+  await loadRooms();
+}
+
 init();
 </script>
 </body>
@@ -401,6 +488,11 @@ ROUTES = [
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/molecules$"), "molecules"),
 ]
 
+POST_ROUTES = [
+    (re.compile(r"^/api/projects/([^/]+)/rooms/add$"), "add_room"),
+    (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/rm$"), "rm_room"),
+]
+
 
 class OrcHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -411,6 +503,52 @@ class OrcHandler(BaseHTTPRequestHandler):
                 getattr(self, "_handle_" + name)(*m.groups())
                 return
         self._respond(404, "text/plain", "Not found")
+
+    def do_POST(self):
+        path = unquote(self.path.split("?")[0])
+        for pattern, name in POST_ROUTES:
+            m = pattern.match(path)
+            if m:
+                getattr(self, "_post_" + name)(*m.groups())
+                return
+        self._respond(404, "text/plain", "Not found")
+
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length) if length else b"{}"
+        return json.loads(raw)
+
+    def _post_add_room(self, project_name):
+        projects = discover_projects()
+        if project_name not in projects:
+            self._json({"error": "project not found"}, 404)
+            return
+        body = self._read_body()
+        room_name = body.get("room_name", "").strip()
+        role = body.get("role", "worker").strip() or "worker"
+        if not room_name:
+            self._json({"error": "room_name is required"}, 400)
+            return
+        proj = OrcProject(projects[project_name])
+        try:
+            proj.add_room(room_name, role=role)
+        except SystemExit:
+            self._json({"error": f"failed to add room '{room_name}'"}, 400)
+            return
+        self._json({"ok": True, "room": room_name})
+
+    def _post_rm_room(self, project_name, room_name):
+        projects = discover_projects()
+        if project_name not in projects:
+            self._json({"error": "project not found"}, 404)
+            return
+        proj = OrcProject(projects[project_name])
+        try:
+            proj.remove_room(room_name)
+        except SystemExit:
+            self._json({"error": f"failed to remove room '{room_name}'"}, 400)
+            return
+        self._json({"ok": True})
 
     def _handle_dashboard(self):
         self._respond(200, "text/html", DASHBOARD_HTML)
