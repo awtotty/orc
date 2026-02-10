@@ -3,6 +3,7 @@ README.md
 pyproject.toml
 src/orc/__init__.py
 src/orc/cli.py
+src/orc/dashboard.py
 src/orc/project.py
 src/orc/roles.py
 src/orc/room.py

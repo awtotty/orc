@@ -101,3 +101,10 @@ def rm(room_name, project):
     proj = _require_project(project)
     proj.remove_room(room_name)
     click.echo(f"Removed room '{room_name}'")
+
+
+@main.command()
+def dash():
+    """Live dashboard showing all projects and rooms."""
+    from orc.dashboard import run_dashboard
+    run_dashboard()

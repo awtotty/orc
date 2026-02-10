@@ -5,4 +5,5 @@ Summary: CLI for orchestrating AI coding agents
 Requires-Python: >=3.11
 License-File: LICENSE.md
 Requires-Dist: click>=8.0
+Requires-Dist: rich>=13.0
 Dynamic: license-file
