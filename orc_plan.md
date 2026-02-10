@@ -175,3 +175,99 @@ The engine is written in Python. It is a thin layer that:
 
 - **orc CLI + tmux**: default UI, ships with orc engine
 - **orc.nvim**: optional neovim plugin UI (future)
+
+## Build Plan
+
+Step-by-step implementation order. Each step should be working/testable before moving on.
+
+### Step 1: Python project skeleton
+
+- Set up Python project structure with `pyproject.toml` (use `click` for CLI)
+- Entry point: `orc` command
+- Basic project layout:
+  ```
+  src/orc/
+    __init__.py
+    cli.py          # click CLI entry point
+    room.py         # room CRUD (files, worktrees)
+    tmux.py         # tmux session management
+    roles.py        # role template loading
+  ```
+- Install as editable: `pip install -e .`
+- Verify `orc --help` works
+
+### Step 2: `orc init`
+
+- Find git repo root (walk up from cwd)
+- Create `.orc/` directory structure
+- Create `@main` room: `agent.json`, `status.json`, `inbox.json`, `molecules/`
+- Create `.orc/.roles/orchestrator.md` and `.orc/.roles/worker.md` with initial role prompts
+- Add `.orc/.worktrees/` to `.gitignore` (worktrees are local, not committed)
+- Error if `.orc/` already exists (or `--force` to reinit)
+- Test: run `orc init` in a git repo, verify file structure
+
+### Step 3: `orc add`
+
+- Validate room name (no spaces, no @-prefix except @main)
+- Create room directory: `.orc/{room}/agent.json`, `status.json`, `inbox.json`, `molecules/`
+- Create git worktree: `git worktree add .orc/.worktrees/{room} -b {room} HEAD`
+- Set `agent.json` role (default: worker)
+- Set `status.json` to `{"status": "active"}`
+- Error if room already exists
+- Test: `orc add feature-x`, verify files + worktree created
+
+### Step 4: tmux session management
+
+- `tmux.py`: create session, attach session, check if session exists, kill session
+- Session naming: `orc-{room}` (replace `@` with empty, so @main → `orc-main`)
+- Create detached session with `tmux new-session -d -s orc-{room} -c {worktree_path}`
+- For @main, cwd is repo root
+- Send command to session: `tmux send-keys -t orc-{room} '{command}' Enter`
+- Attach: `tmux attach -t orc-{room}` (replaces current terminal)
+- Check alive: `tmux has-session -t orc-{room}`
+- Test: create and attach to a tmux session manually
+
+### Step 5: Wire `orc add` to tmux + Claude Code
+
+- After creating room files + worktree, create tmux session
+- Start Claude Code in the session: `claude --append-system-prompt "$(cat .orc/.roles/{role}.md)"`
+- cwd = worktree path (or repo root for @main)
+- Set status to `active`
+- Test: `orc add test-room`, verify tmux session running with Claude Code
+
+### Step 6: `orc [room]` — attach to agent
+
+- If no room specified, default to `@main`
+- Check if tmux session `orc-{room}` exists
+  - If yes: attach to it
+  - If no (exited): recreate session, restart agent, then attach
+- Update status on reattach if needed
+- Test: `orc test-room` attaches, exit claude, `orc test-room` restarts
+
+### Step 7: `orc edit [room]`
+
+- Open `$EDITOR` in the room's worktree
+- If no room specified, default to `@main` (repo root)
+- Could open in a new tmux window within the room's session, or a separate session
+- Test: `orc edit feature-x` opens editor in worktree
+
+### Step 8: Role prompts (orchestrator.md, worker.md)
+
+- Write the actual role prompt content:
+  - Explain the `.orc/` file structure
+  - How to read/write inbox.json (mark messages read)
+  - How to update status.json
+  - How to work with molecules/atoms
+  - For orchestrator: how to delegate work, monitor rooms, write to room inboxes
+  - For worker: how to check inbox, work on atoms, report back to @main
+- These are the seed instructions that make agents "orc-aware"
+- Test: start an agent, verify it understands the orc system
+
+### Step 9: Polish and edge cases
+
+- `orc list` or `orc status` — show all rooms with their statuses
+- Handle room deletion (`orc rm {room}`)
+- Handle already-attached tmux sessions gracefully
+- Add `.orc/.worktrees` to project `.gitignore` during init
+- Validate that git repo exists before any command
+- Helpful error messages throughout

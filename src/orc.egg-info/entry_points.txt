@@ -1,0 +1,2 @@
+[console_scripts]
+orc = orc.cli:main
