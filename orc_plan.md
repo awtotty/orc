@@ -52,9 +52,10 @@ directory is both orc's state store and the agents' communication medium.
 
 - **Project**:
   - A repo with a `.orc/` directory
+  - Lives under `orc/projects/` for Universe support
 
 - **Universe** (post-MVP):
-  - Root directory holding all Orc projects in a system
+  - The `orc/projects/` directory holding all orc projects
   - Cross-project agent messaging
 
 ## @main
@@ -91,6 +92,7 @@ project-root/
     ├── .roles/
     │   ├── orchestrator.md   # system prompt for orchestrator
     │   └── worker.md         # system prompt for worker
+    ├── .worktrees/           # git worktrees (gitignored)
     └── ... (rooms added later)
 ```
 
@@ -114,45 +116,47 @@ After `orc add feature-x -r worker`:
 
 ## tmux Architecture
 
-One tmux session per room:
-- `orc add foo` → creates tmux session `orc-foo`, starts Claude Code with role prompt
-- `orc foo` → attaches to `tmux session `orc-foo`
-- Sessions are independent — one crashing doesn't affect others
-- Session naming convention: `orc-{room-name}` (e.g. `orc-main` for @main)
+One `orc` tmux session with windows for each room:
+- `orc add foo` → creates window `{project}-foo` in the `orc` session, starts Claude Code
+- `orc attach foo` → selects the window in the `orc` session
+- `orc edit foo` → creates window `{project}-foo-edit` with `$EDITOR`
+- Windows are named `{project_dir}-{room}` to avoid collisions across projects
+- If already inside tmux, uses `switch-client`; otherwise uses `attach`
 
 Room lifecycle:
-1. `orc add` creates room files, git worktree, tmux session, starts Claude Code, sends role prompt
-2. `orc room-name` attaches to existing session
-3. If session is dead (status = exited), `orc room-name` recreates session and restarts agent
-4. Agent exit is detected and status set to `exited`
+1. `orc add` creates room files, git worktree, tmux window, starts Claude Code with role prompt
+2. `orc attach room` selects existing window
+3. If window is dead, `orc attach room` recreates window and restarts agent
+4. `orc rm room` kills window, removes worktree, deletes room files
 
 ## Commands
 
 ### Initialize a project
 
 ```
-orc init
+orc init [--force]
 ```
 
-Creates `.orc/` directory, `@main` room, and default role files.
+Creates `.orc/` directory, `@main` room, default role files, `.worktrees/` directory.
+Adds `.orc/.worktrees/` to `.gitignore`. Errors if `.orc/` already exists unless `--force`.
 
 ### Add a room
 
 ```
-orc add {room_name} [-r {role}]
+orc add {room_name} [-r {role}] [-m {message}]
 ```
 
-Creates room directory, git worktree, tmux session, starts agent, sends instruction prompt.
-Role defaults to `worker`.
+Creates room directory, git worktree, tmux window, starts Claude Code with role prompt.
+Role defaults to `worker`. Use `-m` to send an initial message to the agent.
 
-### Open agent chat
+### Attach to a room
 
 ```
-orc [room]
+orc attach [room]
 ```
 
-Attaches to the room's tmux session. If no room specified, attaches to `@main`.
-If the session is dead (exited), recreates it and restarts the agent.
+Selects the room's tmux window. Defaults to `@main`.
+If the window is dead, recreates it and restarts the agent.
 
 ### Open editor in a room
 
@@ -160,114 +164,66 @@ If the session is dead (exited), recreates it and restarts the agent.
 orc edit [room]
 ```
 
-Opens `$EDITOR` in the room's worktree via tmux.
+Opens `$EDITOR` in a new tmux window in the room's worktree. Defaults to `@main`.
+
+### List rooms
+
+```
+orc list
+```
+
+Shows all rooms with their role, status, and tmux window state.
+
+### Remove a room
+
+```
+orc rm {room_name}
+```
+
+Kills tmux window, removes git worktree, deletes room files. Cannot remove `@main`.
 
 ## Implementation
 
 The engine is written in Python. It is a thin layer that:
 - Manages the `.orc/` file structure
 - Creates/destroys git worktrees
-- Manages tmux sessions (create, attach, detect exit)
+- Manages tmux windows within a single `orc` session
 - Injects role instructions into Claude Code via `--append-system-prompt`
 - Does NOT mediate agent-to-agent communication — agents do that through the filesystem
+
+### Project layout
+
+```
+src/orc/
+  __init__.py
+  cli.py          # click CLI entry point
+  project.py      # project-level operations (init, add, attach, edit, list, rm)
+  room.py         # room CRUD (agent.json, status.json, inbox.json, molecules/)
+  tmux.py         # tmux session/window management
+  roles.py        # role template loading (orchestrator.md, worker.md)
+```
+
+### Install
+
+```
+uv tool install -e .
+```
+
+Installs `orc` globally via uv. Editable mode — source changes take effect immediately.
 
 ## Interface
 
 - **orc CLI + tmux**: default UI, ships with orc engine
 - **orc.nvim**: optional neovim plugin UI (future)
 
-## Build Plan
+## Build Plan (completed)
 
-Step-by-step implementation order. Each step should be working/testable before moving on.
-
-### Step 1: Python project skeleton
-
-- Set up Python project structure with `pyproject.toml` (use `click` for CLI)
-- Entry point: `orc` command
-- Basic project layout:
-  ```
-  src/orc/
-    __init__.py
-    cli.py          # click CLI entry point
-    room.py         # room CRUD (files, worktrees)
-    tmux.py         # tmux session management
-    roles.py        # role template loading
-  ```
-- Install as editable: `pip install -e .`
-- Verify `orc --help` works
-
-### Step 2: `orc init`
-
-- Find git repo root (walk up from cwd)
-- Create `.orc/` directory structure
-- Create `@main` room: `agent.json`, `status.json`, `inbox.json`, `molecules/`
-- Create `.orc/.roles/orchestrator.md` and `.orc/.roles/worker.md` with initial role prompts
-- Add `.orc/.worktrees/` to `.gitignore` (worktrees are local, not committed)
-- Error if `.orc/` already exists (or `--force` to reinit)
-- Test: run `orc init` in a git repo, verify file structure
-
-### Step 3: `orc add`
-
-- Validate room name (no spaces, no @-prefix except @main)
-- Create room directory: `.orc/{room}/agent.json`, `status.json`, `inbox.json`, `molecules/`
-- Create git worktree: `git worktree add .orc/.worktrees/{room} -b {room} HEAD`
-- Set `agent.json` role (default: worker)
-- Set `status.json` to `{"status": "active"}`
-- Error if room already exists
-- Test: `orc add feature-x`, verify files + worktree created
-
-### Step 4: tmux session management
-
-- `tmux.py`: create session, attach session, check if session exists, kill session
-- Session naming: `orc-{room}` (replace `@` with empty, so @main → `orc-main`)
-- Create detached session with `tmux new-session -d -s orc-{room} -c {worktree_path}`
-- For @main, cwd is repo root
-- Send command to session: `tmux send-keys -t orc-{room} '{command}' Enter`
-- Attach: `tmux attach -t orc-{room}` (replaces current terminal)
-- Check alive: `tmux has-session -t orc-{room}`
-- Test: create and attach to a tmux session manually
-
-### Step 5: Wire `orc add` to tmux + Claude Code
-
-- After creating room files + worktree, create tmux session
-- Start Claude Code in the session: `claude --append-system-prompt "$(cat .orc/.roles/{role}.md)"`
-- cwd = worktree path (or repo root for @main)
-- Set status to `active`
-- Test: `orc add test-room`, verify tmux session running with Claude Code
-
-### Step 6: `orc [room]` — attach to agent
-
-- If no room specified, default to `@main`
-- Check if tmux session `orc-{room}` exists
-  - If yes: attach to it
-  - If no (exited): recreate session, restart agent, then attach
-- Update status on reattach if needed
-- Test: `orc test-room` attaches, exit claude, `orc test-room` restarts
-
-### Step 7: `orc edit [room]`
-
-- Open `$EDITOR` in the room's worktree
-- If no room specified, default to `@main` (repo root)
-- Could open in a new tmux window within the room's session, or a separate session
-- Test: `orc edit feature-x` opens editor in worktree
-
-### Step 8: Role prompts (orchestrator.md, worker.md)
-
-- Write the actual role prompt content:
-  - Explain the `.orc/` file structure
-  - How to read/write inbox.json (mark messages read)
-  - How to update status.json
-  - How to work with molecules/atoms
-  - For orchestrator: how to delegate work, monitor rooms, write to room inboxes
-  - For worker: how to check inbox, work on atoms, report back to @main
-- These are the seed instructions that make agents "orc-aware"
-- Test: start an agent, verify it understands the orc system
-
-### Step 9: Polish and edge cases
-
-- `orc list` or `orc status` — show all rooms with their statuses
-- Handle room deletion (`orc rm {room}`)
-- Handle already-attached tmux sessions gracefully
-- Add `.orc/.worktrees` to project `.gitignore` during init
-- Validate that git repo exists before any command
-- Helpful error messages throughout
+### Step 1: Python project skeleton ✓
+### Step 2: `orc init` ✓
+### Step 3: `orc add` ✓
+### Step 4: tmux session management ✓
+### Step 5: Wire `orc add` to tmux + Claude Code ✓
+### Step 6: `orc attach` ✓
+### Step 7: `orc edit` ✓
+### Step 8: Role prompts (orchestrator.md, worker.md) ✓
+### Step 9: Polish and edge cases ✓

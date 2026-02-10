@@ -84,6 +84,33 @@ Each room is an isolated workspace:
 - Agents communicate by reading/writing JSON files in `.orc/` (inboxes, statuses, molecules)
 - Role prompts in `.orc/.roles/` teach agents how to use the orc system
 
+## Roles
+
+Roles live in the `roles/` directory as markdown files:
+
+- `roles/system.md` — orc system instructions (injected into every agent)
+- `roles/orchestrator.md` — orchestrator-specific instructions
+- `roles/worker.md` — worker-specific instructions
+- `roles/merger.md` — merge conflict resolver instructions
+
+Each agent gets `system.md` + their role file as a combined system prompt.
+
+### Creating a custom role
+
+Add a markdown file to `roles/`:
+
+```sh
+echo "# Reviewer\n\nYou review pull requests..." > roles/reviewer.md
+```
+
+Then use it when adding a room:
+
+```sh
+orc add code-review -r reviewer
+```
+
+The file name (minus `.md`) is the role name. No code changes needed.
+
 ## Project structure
 
 orc expects projects to live under `~/orc/projects/`:
