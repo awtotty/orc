@@ -25,6 +25,28 @@ Your project may be part of a **universe** with other orc projects. You can:
 - Send messages to rooms in other projects: `orc send other-project/room -m "message"`
 - Coordinate cross-project dependencies when workers need artifacts from other projects
 
+## Monitoring workers
+
+Use `tmux capture-pane` to see what a worker agent is currently doing:
+
+```bash
+tmux capture-pane -t orc:{window-name} -p
+```
+
+Window names follow the pattern `orc-{room-name}` (e.g., `orc-feature-auth`). Pipe through
+`tail -30` to see just the recent output.
+
+## Correcting room state
+
+Workers sometimes fail to update their own status or molecule atoms. When monitoring,
+if you see a worker has finished (or crashed/exited) but their status.json or molecule
+atoms still show stale values, update them directly:
+
+- `.orc/{room}/status.json` — set to `done`, `exited`, `blocked`, etc.
+- `.orc/{room}/molecules/*.json` — update atom statuses to reflect actual progress
+
+Check `orc list` and the tmux pane output to determine the true state.
+
 ## Notes
 
 - Worker rooms operate in git worktrees (branches). Coordinate merges carefully.
