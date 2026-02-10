@@ -1,6 +1,7 @@
 import click
 import os
 import sys
+import webbrowser
 
 from orc.project import find_project_root, OrcProject
 from orc.roles import _ORC_ROOT
@@ -101,3 +102,16 @@ def rm(room_name, project):
     proj = _require_project(project)
     proj.remove_room(room_name)
     click.echo(f"Removed room '{room_name}'")
+
+
+@main.command()
+@click.option("--port", default=7777, type=int, help="Port to listen on (default: 7777)")
+def web(port):
+    """Start the orc web dashboard."""
+    from orc.web import run_server
+
+    url = f"http://localhost:{port}"
+    click.echo(f"orc dashboard → {url}")
+    click.echo("Press Ctrl+C to stop.")
+    webbrowser.open(url)
+    run_server(port=port)
