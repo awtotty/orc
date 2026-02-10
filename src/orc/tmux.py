@@ -81,8 +81,15 @@ class RoomSession:
 
     def send_keys(self, command):
         """Send a command to this room's window."""
+        target = f"{ORC_SESSION}:{self.window_name}"
+        # Send text literally, then Enter separately so TUI apps pick it up
         subprocess.run(
-            ["tmux", "send-keys", "-t", f"{ORC_SESSION}:{self.window_name}", command, "Enter"],
+            ["tmux", "send-keys", "-t", target, "-l", command],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["tmux", "send-keys", "-t", target, "Enter"],
             check=True,
             capture_output=True,
         )

@@ -111,6 +111,28 @@ def rm(room_name, project):
 
 
 @main.command()
+@click.argument("room", default=None, required=False)
+@click.option("-m", "--message", required=True, help="Message to send to the running session")
+@click.option("-a", "--all", "all_rooms", is_flag=True, help="Send to all running rooms")
+@click.option("-p", "--project", default=None, help="Project name in projects/")
+def tell(room, message, all_rooms, project):
+    """Send a message to a running agent's session."""
+    proj = _require_project(project)
+    if all_rooms:
+        sent = proj.tell_all(message)
+        if sent:
+            click.echo(f"Sent to: {', '.join(sent)}")
+        else:
+            click.echo("No running rooms found.")
+    elif room:
+        if proj.tell(room, message):
+            click.echo(f"Sent to {room}")
+    else:
+        click.echo("Error: specify a room name or use --all", err=True)
+        sys.exit(1)
+
+
+@main.command()
 @click.option("-p", "--project", default=None, help="Project name in projects/")
 def clean(project):
     """Clean up dead resources (read messages, completed molecules)."""

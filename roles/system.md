@@ -32,6 +32,7 @@ Agents communicate via **inbox.json** files. Each message has this format:
 - To send a message to another room, append to `.orc/{room}/inbox.json`
 - To read your inbox, check `.orc/{your-room}/inbox.json`
 - Mark messages as `"read": true` after processing them
+- The orchestrator can send a message directly to your running session with `orc tell`. When you receive one, treat it like an inbox message.
 
 ## Status tracking
 

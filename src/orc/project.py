@@ -138,6 +138,34 @@ class OrcProject:
         tmux.attach()
         attach_orc_session()
 
+    def tell(self, room_name, message):
+        """Send a message to a running agent's tmux session."""
+        room = Room(self.orc_dir, room_name)
+        if not room.exists():
+            click.echo(f"Error: room '{room_name}' does not exist", err=True)
+            sys.exit(1)
+        tmux = RoomSession(self.project_name, room_name)
+        if not tmux.is_alive():
+            click.echo(f"Skipping '{room_name}' (not running)", err=True)
+            return False
+        tmux.send_keys(message)
+        return True
+
+    def tell_all(self, message):
+        """Send a message to all running agents."""
+        sent = []
+        for entry in sorted(os.listdir(self.orc_dir)):
+            if entry.startswith("."):
+                continue
+            room = Room(self.orc_dir, entry)
+            if not room.exists():
+                continue
+            tmux = RoomSession(self.project_name, entry)
+            if tmux.is_alive():
+                tmux.send_keys(message)
+                sent.append(entry)
+        return sent
+
     def edit_room(self, room_name):
         room = Room(self.orc_dir, room_name)
         if not room.exists():
