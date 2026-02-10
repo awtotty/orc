@@ -30,3 +30,4 @@ Your project may be part of a **universe** with other orc projects. You can:
 - Worker rooms operate in git worktrees (branches). Coordinate merges carefully.
 - You can read any file in `.orc/` but only write to your own room and worker inboxes.
 - Workers will message you at `.orc/@main/inbox.json` when they need help or are done.
+- When you read inbox messages, mark them as `"read": true`.

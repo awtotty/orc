@@ -5,7 +5,7 @@ orchestrator.
 
 ## Responsibilities
 
-1. **Check inbox** for new messages from the orchestrator
+1. **Check inbox** for new messages from the orchestrator. Mark each message as `"read": true` after you read it.
 2. **Work on atoms** in your molecules directory, updating their status
 3. **Update your status** as your situation changes
 4. **Report back** to the orchestrator via `.orc/@main/inbox.json` when you finish or get stuck
