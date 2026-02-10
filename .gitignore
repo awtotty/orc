@@ -3,3 +3,4 @@
 .venv/
 projects/
 .orc/.worktrees/
+__pycache__/
