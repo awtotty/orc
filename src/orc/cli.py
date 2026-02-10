@@ -1,7 +1,6 @@
 import click
 import os
 import sys
-import webbrowser
 
 from orc.project import find_project_root, OrcProject
 from orc.roles import _ORC_ROOT
@@ -105,20 +104,24 @@ def rm(room_name, project):
 
 
 @main.command()
-def dash():
-    """Live dashboard showing all projects and rooms."""
-    from orc.dashboard import run_dashboard
-    run_dashboard()
-
-
-@main.command()
 @click.option("--port", default=7777, type=int, help="Port to listen on (default: 7777)")
-def web(port):
-    """Start the orc web dashboard."""
-    from orc.web import run_server
+def dash(port):
+    """Open the orc web dashboard."""
+    from orc.tmux import open_window, window_exists
+    import webbrowser
 
-    url = f"http://localhost:{port}"
-    click.echo(f"orc dashboard → {url}")
-    click.echo("Press Ctrl+C to stop.")
-    webbrowser.open(url)
+    name = ".orc-dash"
+    if window_exists(name):
+        click.echo("orc dash is already running.")
+    else:
+        open_window(name, os.getcwd(), f"orc _dash-server --port {port}")
+        click.echo(f"orc dashboard → http://localhost:{port}")
+    webbrowser.open(f"http://localhost:{port}")
+
+
+@main.command(name="_dash-server", hidden=True)
+@click.option("--port", default=7777, type=int)
+def dash_server(port):
+    """Internal: run the web server directly."""
+    from orc.web import run_server
     run_server(port=port)

@@ -148,3 +148,7 @@ def run_dashboard():
         pass
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
+
+if __name__ == "__main__":
+    run_dashboard()

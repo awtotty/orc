@@ -236,6 +236,7 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 let projects={};
 let selected=null;
 let expanded={};
+let selVersion=0;
 
 async function init(){
   projects=await api('/api/projects');
@@ -259,13 +260,16 @@ function renderSidebar(){
 
 async function sel(name){
   selected=name;expanded={};
+  selVersion++;
   renderSidebar();
   await loadRooms();
 }
 
 async function loadRooms(){
   if(!selected) return;
+  const v=selVersion;
   const rooms=await api('/api/projects/'+enc(selected)+'/rooms');
+  if(v!==selVersion) return;
   renderRooms(rooms);
 }
 
@@ -398,6 +402,7 @@ init();
 
 ROUTES = [
     (re.compile(r"^/$"), "dashboard"),
+    (re.compile(r"^/favicon\.ico$"), "favicon"),
     (re.compile(r"^/api/projects$"), "projects"),
     (re.compile(r"^/api/projects/([^/]+)/rooms$"), "rooms"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/inbox$"), "inbox"),
@@ -417,6 +422,9 @@ class OrcHandler(BaseHTTPRequestHandler):
 
     def _handle_dashboard(self):
         self._respond(200, "text/html", DASHBOARD_HTML)
+
+    def _handle_favicon(self):
+        self._respond(204, "text/plain", "")
 
     def _handle_projects(self):
         self._json(discover_projects())
@@ -447,11 +455,14 @@ class OrcHandler(BaseHTTPRequestHandler):
         self._respond(status, "application/json", body)
 
     def _respond(self, status, content_type, body):
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(body.encode())
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body.encode())
+        except BrokenPipeError:
+            pass
 
     def log_message(self, fmt, *args):
         pass  # suppress default request logging
@@ -470,3 +481,9 @@ def run_server(port=7777):
     except KeyboardInterrupt:
         print("\nStopping.")
         server.shutdown()
+
+
+if __name__ == "__main__":
+    import sys
+    p = int(sys.argv[1]) if len(sys.argv) > 1 else 7777
+    run_server(p)
