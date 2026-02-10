@@ -76,7 +76,8 @@ class OrcProject:
             with open(gitignore_path, "w") as f:
                 f.write(entry + "\n")
 
-    def add_room(self, room_name, role="worker", message=None):
+    def add_room(self, room_name, role="worker"):
+        """Create room files and worktree. Does not launch an agent."""
         # Validate name
         if room_name.startswith("@"):
             click.echo("Error: room names cannot start with '@' (reserved for @main)", err=True)
@@ -91,7 +92,7 @@ class OrcProject:
             sys.exit(1)
 
         # Create room files
-        room.create(role=role, status="active")
+        room.create(role=role, status="ready")
 
         # Create git worktree
         worktree_path = os.path.join(self.orc_dir, ".worktrees", room_name)
@@ -111,38 +112,28 @@ class OrcProject:
         # Copy Claude Code permissions to worktree
         self._copy_claude_settings(worktree_path)
 
-        # Create tmux session and start Claude Code
-        role_path = os.path.join(self.orc_dir, ROLES_DIR, f"{role}.md")
-        role_prompt = ""
-        if os.path.exists(role_path):
-            with open(role_path) as f:
-                role_prompt = f.read()
-
-        tmux = RoomSession(self.project_name, room_name)
-        tmux.create(cwd=worktree_path)
-        tmux.start_claude(role_prompt, message=message)
-
-    def attach(self, room_name):
+    def attach(self, room_name, role="worker", message=None):
         room = Room(self.orc_dir, room_name)
+
+        # If room doesn't exist, create it first
         if not room.exists():
-            click.echo(f"Error: room '{room_name}' does not exist", err=True)
-            sys.exit(1)
+            click.echo(f"Room '{room_name}' not found, creating it...")
+            self.add_room(room_name, role=role)
 
         tmux = RoomSession(self.project_name, room_name)
         if not tmux.is_alive():
-            # Recreate session and restart agent
+            # Launch agent in tmux
             cwd = self._room_cwd(room_name)
             agent = room.read_agent()
-            role = agent.get("role", "worker")
-            role_path = os.path.join(self.orc_dir, ROLES_DIR, f"{role}.md")
+            r = agent.get("role", "worker")
+            role_path = os.path.join(self.orc_dir, ROLES_DIR, f"{r}.md")
             role_prompt = ""
             if os.path.exists(role_path):
                 with open(role_path) as f:
                     role_prompt = f.read()
             tmux.create(cwd=cwd)
-            tmux.start_claude(role_prompt)
+            tmux.start_claude(role_prompt, message=message)
             room.set_status("active")
-            click.echo(f"Restarted agent in '{room_name}'")
 
         tmux.attach()
         attach_orc_session()

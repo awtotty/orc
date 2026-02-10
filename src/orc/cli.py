@@ -64,22 +64,23 @@ def init(force, project):
 @main.command()
 @click.argument("room_name")
 @click.option("-r", "--role", default="worker", help="Role for the agent (default: worker)")
-@click.option("-m", "--message", default=None, help="Initial message to send to the agent")
 @click.option("-p", "--project", default=None, help="Project name in projects/")
-def add(room_name, role, message, project):
-    """Add a new room with an agent."""
+def add(room_name, role, project):
+    """Add a new room (files + worktree). Use 'attach' to launch the agent."""
     proj = _require_project(project)
-    proj.add_room(room_name, role=role, message=message)
+    proj.add_room(room_name, role=role)
     click.echo(f"Created room '{room_name}' with role '{role}'")
 
 
 @main.command()
 @click.argument("room", default="@main")
+@click.option("-r", "--role", default="worker", help="Role if creating a new room (default: worker)")
+@click.option("-m", "--message", default=None, help="Initial message to send to the agent")
 @click.option("-p", "--project", default=None, help="Project name in projects/")
-def attach(room, project):
-    """Attach to a room's tmux session (default: @main)."""
+def attach(room, role, message, project):
+    """Attach to a room. Creates it if it doesn't exist, launches agent if not running."""
     proj = _require_project(project)
-    proj.attach(room)
+    proj.attach(room, role=role, message=message)
 
 
 @main.command()
