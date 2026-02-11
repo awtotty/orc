@@ -508,12 +508,14 @@ function renderSidebar() {
     const span = document.createElement('span');
     span.textContent = name;
     d.appendChild(span);
-    const rm = document.createElement('button');
-    rm.className = 'proj-rm';
-    rm.textContent = '\u00d7';
-    rm.title = 'Remove project';
-    rm.onclick = (e) => { e.stopPropagation(); doRmProject(name); };
-    d.appendChild(rm);
+    if (name !== 'orc') {
+      const rm = document.createElement('button');
+      rm.className = 'proj-rm';
+      rm.textContent = '\u00d7';
+      rm.title = 'Remove project';
+      rm.onclick = (e) => { e.stopPropagation(); doRmProject(name); };
+      d.appendChild(rm);
+    }
     d.onclick = () => sel(name);
     el.appendChild(d);
   }

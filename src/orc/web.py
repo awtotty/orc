@@ -226,6 +226,9 @@ class OrcHandler(BaseHTTPRequestHandler):
         self._json({"ok": True, "name": name})
 
     def _post_rm_project(self, project_name):
+        if project_name == "orc":
+            self._json({"error": "cannot remove the orc project"}, 400)
+            return
         import shutil
         uni = Universe()
         entry = os.path.join(uni.projects_dir, project_name)
