@@ -33,9 +33,14 @@ def open_window(name, cwd, command=None):
     cmd = ["tmux", "new-window", "-t", f"{ORC_SESSION}:", "-n", name]
     if cwd:
         cmd.extend(["-c", cwd])
-    if command:
-        cmd.append(command)
     subprocess.run(cmd, check=True, capture_output=True)
+    if command:
+        # Target the just-created window (last in session)
+        target = f"{ORC_SESSION}:{{end}}"
+        subprocess.run(
+            ["tmux", "send-keys", "-t", target, command, "Enter"],
+            check=True, capture_output=True,
+        )
 
 
 def attach_orc_session():
