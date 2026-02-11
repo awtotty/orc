@@ -14,11 +14,16 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     ripgrep \
     unzip \
-    neovim \
     nodejs \
     npm \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /usr/lib/python*/EXTERNALLY-MANAGED
+
+# Install latest Neovim from GitHub releases
+RUN curl -Lo /tmp/nvim.tar.gz https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz \
+    && tar xf /tmp/nvim.tar.gz -C /opt \
+    && ln -s /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim \
+    && rm /tmp/nvim.tar.gz
 
 # Install GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \

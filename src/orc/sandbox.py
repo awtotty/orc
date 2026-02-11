@@ -95,10 +95,23 @@ def start():
     for env in cfg["env"]:
         run_cmd.extend(["-e", env])
 
+    # Editor (used by `orc edit` and other tools)
+    run_cmd.extend(["-e", f"EDITOR={cfg['editor']}"])
+
     # User config (tmux, nvim, etc.)
     configdir = os.path.join(home, ".config")
     if os.path.isdir(configdir):
         run_cmd.extend(["-v", f"{configdir}:{configdir}:ro"])
+
+    # lazy.nvim lockfile needs to be writable (override the ro config mount)
+    lazy_lock = os.path.join(home, ".config", "nvim", "lazy-lock.json")
+    if os.path.exists(lazy_lock):
+        run_cmd.extend(["-v", f"{lazy_lock}:{lazy_lock}"])
+
+    # Neovim plugins (lazy.nvim installs here on host)
+    nvim_data = os.path.join(home, ".local", "share", "nvim")
+    if os.path.isdir(nvim_data):
+        run_cmd.extend(["-v", f"{nvim_data}:{nvim_data}"])
 
     # Git config (optional)
     gitconfig = os.path.join(home, ".gitconfig")
@@ -120,14 +133,14 @@ def start():
     click.echo("Starting sandbox...")
     subprocess.run(run_cmd, check=True)
 
-    # Ensure HOME and ~/.local/bin exist, and symlink claude there
+    # Ensure HOME, ~/.local/bin, and ~/.cache exist, and symlink claude
     # (Claude Code's config in ~/.claude records installMethod=native expecting ~/.local/bin/claude)
     uid_gid = f"{os.getuid()}:{os.getgid()}"
     subprocess.run(
         ["docker", "exec", "-u", "0", CONTAINER_NAME,
          "bash", "-c",
-         f"mkdir -p {home}/.local/bin"
-         f" && chown {uid_gid} {home} {home}/.local {home}/.local/bin"
+         f"mkdir -p {home}/.local/bin {home}/.cache"
+         f" && chown {uid_gid} {home} {home}/.local {home}/.local/bin {home}/.cache"
          f" && ln -sf /usr/local/bin/claude {home}/.local/bin/claude"],
         check=True,
     )

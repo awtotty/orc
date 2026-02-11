@@ -10,6 +10,7 @@ DEFAULTS = {
         "packages": [],
         "mounts": [],
         "env": [],
+        "editor": "nvim",
     },
 }
 
