@@ -5,3 +5,4 @@ projects/
 .orc/.worktrees/
 __pycache__/
 build/
+*.egg-info/
