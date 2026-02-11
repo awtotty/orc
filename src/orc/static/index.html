@@ -168,15 +168,6 @@ body{
   line-height:1.4;display:none
 }
 #terminal-fallback.active{display:block}
-#terminal-input-bar{
-  display:flex;gap:8px;padding:10px 24px;
-  border-top:1px solid var(--border);background:var(--surface)
-}
-#terminal-input{
-  flex:1;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
-  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit
-}
-#terminal-input:focus{outline:none;border-color:var(--accent)}
 
 /* Modal */
 .modal-bg{
@@ -255,10 +246,6 @@ body{
     </div>
     <div id="xterm-container"></div>
     <div id="terminal-fallback"></div>
-    <div id="terminal-input-bar">
-      <input id="terminal-input" placeholder="Type a command and press Enter..." onkeydown="if(event.key==='Enter')termSendInput()">
-      <button class="btn btn-sm" onclick="termSendInput()">Send</button>
-    </div>
   </div>
 </div>
 
@@ -959,25 +946,6 @@ async function pollTerminal() {
   } catch(e) {}
 }
 
-// ---------------------------------------------------------------------------
-// Terminal input bar (works in both WS and polling mode)
-// ---------------------------------------------------------------------------
-function termSendInput() {
-  const input = $('terminal-input');
-  const msg = input.value;
-  if (!msg) return;
-  input.value = '';
-
-  if (ws && wsConnected) {
-    ws.send(msg + '\r');
-  } else if (selected && termRoom) {
-    // Fallback: send via tell endpoint
-    fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/tell', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg})
-    }).then(() => toast('Sent via tell', 'info')).catch(() => toast('Send failed', 'error'));
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Close modals on backdrop click
