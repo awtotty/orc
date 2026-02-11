@@ -2,13 +2,6 @@
 
 CLI for orchestrating AI coding agents. orc manages the environment — git worktrees, tmux sessions, role instructions — and Claude Code does the actual work. Agents communicate through the filesystem via the `.orc/` directory.
 
-## Requirements
-
-- Python 3.11+
-- git
-- tmux
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-
 ## Install
 
 ```sh
@@ -17,21 +10,51 @@ cd orc
 uv tool install -e .
 ```
 
-## Usage
+Requires [uv](https://docs.astral.sh/uv/), Python 3.11+, and Docker.
 
-### Set up a project
-
-Clone your repo into `~/orc/projects/` and initialize it:
+## Quick start
 
 ```sh
-git clone https://github.com/you/your-repo.git ~/orc/projects/your-repo
-cd ~/orc/projects/your-repo
-orc init
+orc start
 ```
 
-Creates a `.orc/` directory with the `@main` orchestrator room and default role files.
+This builds a Docker sandbox with all dependencies (git, tmux, Claude Code, etc.), starts it, and drops you into the orc tmux session. Everything runs inside the container — no host setup beyond Docker is needed.
 
-### Add a worker room
+When you're done:
+
+```sh
+orc stop
+```
+
+### Inside the sandbox
+
+Set up a project and start working:
+
+```sh
+cd ~/orc/projects
+git clone https://github.com/you/your-repo.git
+cd your-repo
+orc init       # creates .orc/ directory with orchestrator room
+orc attach     # attach to the @main orchestrator
+```
+
+## Commands
+
+### `orc start`
+
+Builds the sandbox image (if needed), starts the container, and attaches. This is the main entry point — run it to get going.
+
+### `orc stop`
+
+Stops and removes the sandbox container.
+
+### `orc init`
+
+Initializes orc in a git repository. Creates `.orc/` with the `@main` orchestrator room and default role files.
+
+### `orc add <room> [-r role] [-m message]`
+
+Creates a worker room with its own git worktree, tmux window, and Claude Code agent.
 
 ```sh
 orc add feature-auth
@@ -39,48 +62,62 @@ orc add bug-fix -r worker
 orc add feature-auth -m "implement the auth module"
 ```
 
-Creates a git worktree, tmux session, and starts Claude Code with the role's system prompt. Use `-m` to send an initial message to the agent.
+### `orc attach [room]`
 
-### Attach to a room
+Attaches to a room's tmux session. Defaults to `@main`. Restarts the agent if the session died.
 
-```sh
-orc attach           # attach to @main
-orc attach feature-auth
-```
+### `orc edit [room]`
 
-Opens the room's tmux session. If the session died, it restarts the agent automatically.
+Opens `$EDITOR` in a room's working directory.
 
-### Open an editor in a room's worktree
-
-```sh
-orc edit             # edit @main (project root)
-orc edit feature-auth
-```
-
-Opens `$EDITOR` in the room's working directory.
-
-### List rooms
-
-```sh
-orc list
-```
+### `orc list`
 
 Shows all rooms with their role, status, and whether the tmux session is alive.
 
-### Remove a room
-
-```sh
-orc rm feature-auth
-```
+### `orc rm <room>`
 
 Kills the tmux session, removes the git worktree, and deletes the room's files.
 
+### `orc send <room> -m <message>`
+
+Sends a message to a room's inbox.
+
+### `orc tell <room> -m <message>`
+
+Sends a message directly to a running agent's Claude Code session.
+
+## Sandbox
+
+The sandbox is a Docker container that provides a fully isolated environment with everything pre-installed: git, tmux, Claude Code, GitHub CLI, Node.js, Python, and more.
+
+`orc start` and `orc stop` are the primary interface. Under the hood, these use `orc sandbox start/stop/status/attach`.
+
+### Configuration
+
+Create a `config.toml` in the orc source root to customize the sandbox:
+
+```toml
+[sandbox]
+ports = ["7777:7777", "3000:3000"]
+packages = ["postgresql-client"]
+mounts = ["/host/path:/container/path"]
+env = ["MY_VAR=value"]
+```
+
+### What gets mounted
+
+- Your project directory (at the same absolute path)
+- `~/.claude` (Claude Code OAuth credentials)
+- `~/.config` (git credential helper, gh auth, tmux/nvim config) — read-only
+- `~/.gitconfig` — read-only
+- SSH agent socket (if available)
+
 ## How it works
 
-Each room is an isolated workspace:
+Each room is a workspace isolated at the git level (separate worktree and branch), not at the container level — all rooms share the same sandbox:
 
 - **@main** lives at the project root and runs the orchestrator role
-- **Worker rooms** each get their own git worktree (branch) and tmux session
+- **Worker rooms** each get their own git worktree (branch) and tmux window
 - Agents communicate by reading/writing JSON files in `.orc/` (inboxes, statuses, molecules)
 - Role prompts in `.orc/.roles/` teach agents how to use the orc system
 
@@ -110,19 +147,3 @@ orc add code-review -r reviewer
 ```
 
 The file name (minus `.md`) is the role name. No code changes needed.
-
-## Project structure
-
-orc expects projects to live under `~/orc/projects/`:
-
-```
-~/orc/
-├── src/orc/            # orc source
-├── projects/           # your repos (gitignored)
-│   ├── my-app/
-│   │   └── .orc/
-│   └── my-lib/
-│       └── .orc/
-```
-
-This layout supports cross-project agent messaging (Universe) in the future.
