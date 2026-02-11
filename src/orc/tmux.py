@@ -30,13 +30,15 @@ def ensure_orc_session():
 def open_window(name, cwd, command=None):
     """Open a new window in the orc tmux session."""
     ensure_orc_session()
-    cmd = ["tmux", "new-window", "-t", f"{ORC_SESSION}:", "-n", name]
+    cmd = [
+        "tmux", "new-window", "-t", f"{ORC_SESSION}:", "-n", name,
+        "-P", "-F", "#{session_name}:#{window_index}",
+    ]
     if cwd:
         cmd.extend(["-c", cwd])
-    subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    target = result.stdout.strip()
     if command:
-        # Target the just-created window (last in session)
-        target = f"{ORC_SESSION}:{{end}}"
         subprocess.run(
             ["tmux", "send-keys", "-t", target, command, "Enter"],
             check=True, capture_output=True,
