@@ -7,7 +7,7 @@ name = "orc"
 version = "0.1.0"
 description = "CLI for orchestrating AI coding agents"
 requires-python = ">=3.11"
-dependencies = ["click>=8.0", "rich>=13.0"]
+dependencies = ["click>=8.0", "rich>=13.0", "websockets>=15.0"]
 
 [project.scripts]
 orc = "orc.cli:main"
