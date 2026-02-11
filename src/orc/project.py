@@ -92,7 +92,7 @@ class OrcProject:
             sys.exit(1)
 
         # Create room files
-        room.create(role=role, status="ready")
+        room.create(role=role, status="idle")
 
         # Create git worktree
         worktree_path = os.path.join(self.orc_dir, ".worktrees", room_name)
@@ -151,7 +151,7 @@ class OrcProject:
                     role_prompt = f.read()
             tmux.create(cwd=cwd)
             tmux.start_claude(role_prompt)
-            room.set_status("active")
+            room.set_status("working")
 
             if message:
                 import time

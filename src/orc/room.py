@@ -14,7 +14,7 @@ class Room:
             os.path.join(self.path, "agent.json")
         )
 
-    def create(self, role="worker", status="ready"):
+    def create(self, role="worker", status="idle"):
         os.makedirs(self.path, exist_ok=True)
         os.makedirs(os.path.join(self.path, "molecules"), exist_ok=True)
 

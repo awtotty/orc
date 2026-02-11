@@ -9,7 +9,7 @@ filesystem. The `.orc/` directory is the shared state store.
 .orc/
 ├── @main/              # Orchestrator room (project root)
 │   ├── agent.json      # {"role": "orchestrator", "sessions": []}
-│   ├── status.json     # {"status": "active"}
+│   ├── status.json     # {"status": "working"}
 │   ├── inbox.json      # Messages from other agents
 │   └── molecules/      # Work items
 ├── {room-name}/        # Worker rooms
@@ -36,13 +36,13 @@ Agents communicate via **inbox.json** files. Each message has this format:
 
 ## Status tracking
 
-Each room has a `status.json` with one of: `active`, `ready`, `blocked`, `done`, `exited`.
+Each room has a `status.json` with one of: `idle`, `working`, `blocked`, `done`, `exited`.
 
 Update your own status as your situation changes.
 
 **IMPORTANT:** Set your status to `blocked` BEFORE you ask the user a question or request
 permission approval. A human monitors the dashboard for `blocked` status to know where
-intervention is needed. Set it back to `active` once you resume work.
+intervention is needed. Set it back to `working` once you resume work.
 
 ## Molecules and Atoms
 

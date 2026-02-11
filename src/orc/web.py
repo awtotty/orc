@@ -180,11 +180,12 @@ body{
   font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
   text-transform:uppercase;letter-spacing:.5px
 }
-.s-active{background:rgba(63,185,80,.15);color:var(--green)}
-.s-ready{background:rgba(210,153,34,.15);color:var(--yellow)}
-.s-blocked{background:rgba(248,81,73,.15);color:var(--red)}
+.s-idle{background:rgba(139,148,158,.15);color:var(--muted)}
+.s-working{background:rgba(88,166,255,.15);color:var(--accent)}
+.s-blocked{background:rgba(210,153,34,.15);color:var(--yellow)}
 .s-done{background:rgba(63,185,80,.15);color:var(--green)}
-.s-exited,.s-unknown{background:rgba(139,148,158,.15);color:var(--muted)}
+.s-exited{background:rgba(248,81,73,.15);color:var(--red)}
+.s-unknown{background:rgba(139,148,158,.15);color:var(--muted)}
 .tmux{font-size:12px}
 .tmux.alive{color:var(--green)}
 .tmux.dead{color:var(--muted)}
@@ -421,14 +422,14 @@ async function loadPanel(room,section,panel){
     }else{
       panel.innerHTML=mols.map(mol=>{
         let h='<div class="mol-title">'+esc(mol.title||mol.id||'Untitled');
-        if(mol.status) h+=' <span class="badge s-'+(mol.status==='in_progress'?'active':mol.status)+'">'+mol.status+'</span>';
+        if(mol.status) h+=' <span class="badge s-'+(mol.status==='in_progress'?'working':mol.status)+'">'+mol.status+'</span>';
         h+='</div>';
         if(mol.atoms){
           h+=mol.atoms.map(a=>
             '<div class="atom">'+
               '<span class="atom-dot '+(a.status||'todo')+'"></span>'+
               '<span>'+esc(a.title||a.id)+'</span>'+
-              '<span class="badge s-'+(a.status==='in_progress'?'active':(a.status||'unknown'))+'">'+
+              '<span class="badge s-'+(a.status==='in_progress'?'working':(a.status||'unknown'))+'">'+
                 (a.status||'?')+
               '</span>'+
             '</div>'
@@ -624,7 +625,7 @@ class OrcHandler(BaseHTTPRequestHandler):
                     role_prompt = f.read()
             tmux.create(cwd=cwd)
             tmux.start_claude(role_prompt)
-            room.set_status("active")
+            room.set_status("working")
 
             if message:
                 import time
@@ -713,7 +714,7 @@ class OrcHandler(BaseHTTPRequestHandler):
             return
         body = self._read_body()
         status = body.get("status", "")
-        valid = {"active", "ready", "blocked", "done", "exited"}
+        valid = {"idle", "working", "blocked", "done", "exited"}
         if status not in valid:
             self._json({"error": f"status must be one of: {', '.join(sorted(valid))}"}, 400)
             return

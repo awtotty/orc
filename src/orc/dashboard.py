@@ -85,12 +85,14 @@ def build_display():
 
         for room in rooms:
             status = room["status"]
-            if status == "active":
-                status_style = "green"
+            if status == "working":
+                status_style = "blue"
             elif status == "blocked":
                 status_style = "yellow"
-            elif status == "ready":
-                status_style = "blue"
+            elif status == "done":
+                status_style = "green"
+            elif status == "exited":
+                status_style = "red"
             else:
                 status_style = "dim"
 
