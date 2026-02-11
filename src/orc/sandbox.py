@@ -123,6 +123,13 @@ def start():
     if ssh_sock:
         run_cmd.extend(["-v", f"{ssh_sock}:{ssh_sock}", "-e", f"SSH_AUTH_SOCK={ssh_sock}"])
 
+    # GitHub token (gh uses keyring on host, pass token via env for container)
+    gh_token = subprocess.run(
+        ["gh", "auth", "token"], capture_output=True, text=True,
+    )
+    if gh_token.returncode == 0 and gh_token.stdout.strip():
+        run_cmd.extend(["-e", f"GH_TOKEN={gh_token.stdout.strip()}"])
+
     # API key (optional, OAuth is preferred)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if api_key:
@@ -143,6 +150,12 @@ def start():
          f" && chown {uid_gid} {home} {home}/.local {home}/.local/bin {home}/.cache"
          f" && ln -sf /usr/local/bin/claude {home}/.local/bin/claude"],
         check=True,
+    )
+
+    # Set up gh as git credential helper so git push works
+    subprocess.run(
+        ["docker", "exec", CONTAINER_NAME, "gh", "auth", "setup-git"],
+        capture_output=True,
     )
 
     # Install orc inside the container (as root for system pip access)
