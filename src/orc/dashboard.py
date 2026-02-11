@@ -1,4 +1,3 @@
-import os
 import select
 import sys
 import termios
@@ -12,51 +11,12 @@ from rich.table import Table
 from rich.text import Text
 from rich import box
 
-from orc.room import Room
-from orc.tmux import RoomSession
-from orc.universe import Universe
-
-
-def scan_projects():
-    """List initialized orc projects in the universe."""
-    uni = Universe()
-    return list(uni.discover().items())
-
-
-def collect_rooms(project_name, project_root):
-    """Collect room data for a project."""
-    orc_dir = os.path.join(project_root, ".orc")
-    rooms = []
-    for entry in sorted(os.listdir(orc_dir)):
-        if entry.startswith("."):
-            continue
-        room = Room(orc_dir, entry)
-        if not room.exists():
-            continue
-        agent = room.read_agent()
-        status_data = room.read_status()
-        inbox = room.read_inbox()
-
-        role = agent.get("role", "unknown")
-        status = status_data.get("status", "unknown")
-        inbox_count = len(inbox) if isinstance(inbox, list) else 0
-
-        tmux = RoomSession(project_name, entry)
-        alive = tmux.is_alive()
-
-        rooms.append({
-            "name": entry,
-            "role": role,
-            "status": status,
-            "alive": alive,
-            "inbox": inbox_count,
-        })
-    return rooms
+from orc.service import discover_projects, get_rooms
 
 
 def build_display():
     """Build the full dashboard display."""
-    projects = scan_projects()
+    projects = list(discover_projects().items())
 
     if not projects:
         return Panel(
@@ -67,7 +27,7 @@ def build_display():
 
     parts = []
     for project_name, project_root in projects:
-        rooms = collect_rooms(project_name, project_root)
+        rooms = get_rooms(project_root)
 
         parts.append(Text(f"■ {project_name}", style="bold cyan"))
 
@@ -96,10 +56,10 @@ def build_display():
             else:
                 status_style = "dim"
 
-            tmux_text = "alive" if room["alive"] else "dead"
-            tmux_style = "green" if room["alive"] else "red"
+            tmux_text = "alive" if room["tmux"] else "dead"
+            tmux_style = "green" if room["tmux"] else "red"
 
-            inbox_count = room["inbox"]
+            inbox_count = room["inbox_count"]
             inbox_style = "bold yellow" if inbox_count > 0 else "dim"
 
             table.add_row(

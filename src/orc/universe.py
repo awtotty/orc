@@ -1,8 +1,6 @@
 """Universe — the orc/projects/ directory holding all orc projects."""
 
-import json
 import os
-from datetime import datetime, timezone
 
 from orc.roles import _ORC_ROOT
 
@@ -88,28 +86,12 @@ class Universe:
         message: message text
         """
         project_path = self.resolve_project(to_project)
-        inbox_path = os.path.join(project_path, ".orc", to_room, "inbox.json")
+        # Lazy import to avoid circular dependency (service imports Universe)
+        from orc.service import send_inbox_message
 
-        if not os.path.isfile(inbox_path):
+        try:
+            send_inbox_message(project_path, to_room, message, from_addr)
+        except ValueError:
             raise ValueError(
                 f"Room '{to_room}' not found in project '{to_project}'"
             )
-
-        with open(inbox_path) as f:
-            inbox = json.load(f)
-
-        if not isinstance(inbox, list):
-            inbox = []
-
-        inbox.append(
-            {
-                "from": from_addr,
-                "message": message,
-                "read": False,
-                "ts": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-
-        with open(inbox_path, "w") as f:
-            json.dump(inbox, f, indent=2)
-            f.write("\n")

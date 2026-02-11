@@ -221,29 +221,15 @@ def send(target, message, from_addr, project):
             sys.exit(1)
     else:
         # Local: just a room name within the current/specified project
+        from orc.service import send_inbox_message
+
         proj = _require_project(project)
         to_room = target
-        inbox_path = os.path.join(proj.orc_dir, to_room, "inbox.json")
-        if not os.path.isfile(inbox_path):
-            click.echo(f"Error: room '{to_room}' not found", err=True)
+        try:
+            send_inbox_message(proj.root, to_room, message, from_addr)
+        except ValueError as e:
+            click.echo(f"Error: {e}", err=True)
             sys.exit(1)
-
-        import json
-        from datetime import datetime, timezone
-
-        with open(inbox_path) as f:
-            inbox = json.load(f)
-        if not isinstance(inbox, list):
-            inbox = []
-        inbox.append({
-            "from": from_addr,
-            "message": message,
-            "read": False,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        })
-        with open(inbox_path, "w") as f:
-            json.dump(inbox, f, indent=2)
-            f.write("\n")
         click.echo(f"Sent to {to_room}")
 
 
