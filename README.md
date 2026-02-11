@@ -10,7 +10,7 @@ cd orc
 uv tool install -e .
 ```
 
-Requires [uv](https://docs.astral.sh/uv/), Python 3.11+, and Docker.
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+. Docker is not required but highly recommended.
 
 ## Quick start
 
@@ -18,7 +18,7 @@ Requires [uv](https://docs.astral.sh/uv/), Python 3.11+, and Docker.
 orc start
 ```
 
-This builds a Docker sandbox with all dependencies (git, tmux, Claude Code, etc.), starts it, and drops you into the orc tmux session. Everything runs inside the container — no host setup beyond Docker is needed.
+This builds a Docker sandbox with all dependencies (git, tmux, Claude Code, etc.), starts it, and drops you into the orc tmux session. Everything runs inside the container — no host setup beyond Docker is needed. Claude agents run with `dangerously-skip-permissions` by default.
 
 When you're done:
 
@@ -37,6 +37,30 @@ cd your-repo
 orc init       # creates .orc/ directory with orchestrator room
 orc attach     # attach to the @main orchestrator
 ```
+
+Tell the orchestrator what you want. Tell it to delegate, and it will. Tell it to clean up, and it will. Tell it to do something on its own, and it will.
+
+## How it works
+
+Each room is a workspace isolated at the git level (separate worktree and branch), not at the container level — all rooms share the same sandbox:
+
+- **@main** lives at the project root and runs the orchestrator role
+- **Worker rooms** each get their own git worktree (branch) and tmux window
+- Agents communicate by reading/writing JSON files in `.orc/` (inboxes, statuses, molecules)
+- Role prompts in `.orc/.roles/` teach agents how to use the orc system
+
+You navigate it all with the help of tmux.
+
+## Roles
+
+Roles live in the `roles/` directory as markdown files:
+
+- `roles/system.md` — orc system instructions (injected into every agent)
+- `roles/orchestrator.md` — orchestrator-specific instructions
+- `roles/worker.md` — worker-specific instructions
+- `roles/merger.md` — merge conflict resolver instructions
+
+Each agent gets `system.md` + their role file as a combined system prompt.
 
 ## Commands
 
@@ -92,17 +116,7 @@ The sandbox is a Docker container that provides a fully isolated environment wit
 
 `orc start` and `orc stop` are the primary interface. Under the hood, these use `orc sandbox start/stop/status/attach`.
 
-### Configuration
-
-Create a `config.toml` in the orc source root to customize the sandbox:
-
-```toml
-[sandbox]
-ports = ["7777:7777", "3000:3000"]
-packages = ["postgresql-client"]
-mounts = ["/host/path:/container/path"]
-env = ["MY_VAR=value"]
-```
+You can run orc commands ouside of the sandbox as much as you like, though agents won't have `dangerously-skip-permissions` enabled by default. That said, it's probably better to run orc in the sandbox for the isolation benefits.
 
 ### What gets mounted
 
@@ -112,27 +126,19 @@ env = ["MY_VAR=value"]
 - `~/.gitconfig` — read-only
 - SSH agent socket (if available)
 
-## How it works
+## Configuration
 
-Each room is a workspace isolated at the git level (separate worktree and branch), not at the container level — all rooms share the same sandbox:
+Create a `config.toml` in the orc source root to customize the sandbox and other behavior:
 
-- **@main** lives at the project root and runs the orchestrator role
-- **Worker rooms** each get their own git worktree (branch) and tmux window
-- Agents communicate by reading/writing JSON files in `.orc/` (inboxes, statuses, molecules)
-- Role prompts in `.orc/.roles/` teach agents how to use the orc system
+```toml
+[sandbox]
+ports = ["7777:7777", "3000:3000"]
+packages = ["postgresql-client"]
+mounts = ["/host/path:/container/path"]
+env = ["MY_VAR=value"]
+```
 
-## Roles
-
-Roles live in the `roles/` directory as markdown files:
-
-- `roles/system.md` — orc system instructions (injected into every agent)
-- `roles/orchestrator.md` — orchestrator-specific instructions
-- `roles/worker.md` — worker-specific instructions
-- `roles/merger.md` — merge conflict resolver instructions
-
-Each agent gets `system.md` + their role file as a combined system prompt.
-
-### Creating a custom role
+## Creating a custom role
 
 Add a markdown file to `roles/`:
 
