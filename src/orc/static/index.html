@@ -18,6 +18,21 @@ body{
   background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden
 }
 
+/* Focus */
+:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px
+}
+.status-select:focus-visible{outline-offset:1px}
+.card:focus-visible{
+  outline-offset:-2px;
+  border-color:var(--accent)
+}
+.toggle:focus-visible{outline-offset:-2px}
+.modal input:focus-visible,.modal select:focus-visible,.modal textarea:focus-visible{
+  outline-offset:-1px
+}
+
 /* Sidebar */
 #sidebar{
   width:220px;min-width:220px;background:var(--surface);
@@ -67,7 +82,7 @@ body{
   font-family:inherit;transition:all .15s
 }
 .btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn-sm{padding:4px 10px;font-size:12px}
+.btn-sm{padding:5px 12px;font-size:12px}
 .btn-danger{color:var(--red)}
 .btn-danger:hover{border-color:var(--red);background:rgba(248,81,73,.1);color:var(--red)}
 .btn-primary{background:rgba(88,166,255,.15);color:var(--accent);border-color:var(--accent)}
@@ -89,7 +104,8 @@ body{
 .card-name{font-size:16px;font-weight:600;flex:1;min-width:100px}
 .badge{
   font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
-  text-transform:uppercase;letter-spacing:.5px
+  text-transform:uppercase;letter-spacing:.5px;
+  transition:background .2s,color .2s
 }
 .s-idle{background:rgba(139,148,158,.15);color:var(--muted)}
 .s-working{background:rgba(88,166,255,.15);color:var(--accent)}
@@ -108,9 +124,15 @@ body{
 .status-select{
   padding:3px 8px;border-radius:6px;border:1px solid var(--border);
   background:var(--surface2);color:var(--text);font-size:12px;
-  font-family:inherit;cursor:pointer
+  font-family:inherit;cursor:pointer;transition:border-color .15s
 }
-.status-select:focus{outline:none;border-color:var(--accent)}
+.status-select.ss-idle{border-color:var(--muted)}
+.status-select.ss-working{border-color:var(--accent)}
+.status-select.ss-blocked{border-color:var(--yellow)}
+.status-select.ss-done{border-color:var(--green)}
+.status-select.ss-exited{border-color:var(--red)}
+.card-actions .btn-group{display:flex;gap:6px}
+.card-actions .btn-sep{width:1px;background:var(--border);align-self:stretch;margin:0 4px}
 
 /* Toggle panels */
 .toggle{
@@ -156,7 +178,7 @@ body{
 #room-select:focus{outline:none;border-color:var(--accent)}
 .conn-badge{
   font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
-  letter-spacing:.5px
+  letter-spacing:.5px;transition:background .2s,color .2s
 }
 .conn-ws{background:rgba(63,185,80,.15);color:var(--green)}
 .conn-poll{background:rgba(210,153,34,.15);color:var(--yellow)}
@@ -168,15 +190,6 @@ body{
   line-height:1.4;display:none
 }
 #terminal-fallback.active{display:block}
-#terminal-input-bar{
-  display:flex;gap:8px;padding:10px 24px;
-  border-top:1px solid var(--border);background:var(--surface)
-}
-#terminal-input{
-  flex:1;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
-  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit
-}
-#terminal-input:focus{outline:none;border-color:var(--accent)}
 
 /* Modal */
 .modal-bg{
@@ -207,12 +220,41 @@ body{
   padding:10px 16px;border-radius:8px;font-size:13px;
   background:var(--surface);border:1px solid var(--border);
   box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:auto;
-  animation:toast-in .3s ease;max-width:360px
+  animation:toast-in .3s ease;max-width:360px;
+  display:flex;align-items:center;gap:10px
 }
+.toast-close{
+  background:none;border:none;color:inherit;cursor:pointer;font-size:16px;
+  padding:0 2px;line-height:1;opacity:.6
+}
+.toast-close:hover{opacity:1}
 .toast.success{border-color:var(--green);color:var(--green)}
 .toast.error{border-color:var(--red);color:var(--red)}
 .toast.info{border-color:var(--accent);color:var(--accent)}
 @keyframes toast-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+
+/* Keyboard help overlay */
+#keyboard-help{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+  align-items:center;justify-content:center;z-index:150
+}
+#keyboard-help.open{display:flex}
+#keyboard-help .help-panel{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:24px 28px;width:420px;max-width:90vw;max-height:80vh;overflow-y:auto
+}
+#keyboard-help h3{margin-bottom:16px;font-size:16px;color:var(--accent)}
+#keyboard-help table{width:100%;border-collapse:collapse;font-size:13px}
+#keyboard-help td{padding:5px 0}
+#keyboard-help td:first-child{
+  color:var(--text);font-family:'Menlo','Monaco',monospace;font-size:12px;
+  white-space:nowrap;width:100px
+}
+#keyboard-help td:last-child{color:var(--muted)}
+#keyboard-help .help-section{
+  font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+  padding:12px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px
+}
 
 /* Loading dot */
 .dot{
@@ -242,7 +284,7 @@ body{
 
   <div id="content">
     <div id="placeholder">Select a project</div>
-    <div id="rooms" class="grid" style="display:none"></div>
+    <div id="rooms" class="grid" role="list" style="display:none"></div>
   </div>
 
   <div id="terminal-view">
@@ -255,10 +297,6 @@ body{
     </div>
     <div id="xterm-container"></div>
     <div id="terminal-fallback"></div>
-    <div id="terminal-input-bar">
-      <input id="terminal-input" placeholder="Type a command and press Enter..." onkeydown="if(event.key==='Enter')termSendInput()">
-      <button class="btn btn-sm" onclick="termSendInput()">Send</button>
-    </div>
   </div>
 </div>
 
@@ -312,6 +350,29 @@ body{
   </div>
 </div>
 
+<!-- Keyboard Help Overlay -->
+<div id="keyboard-help">
+  <div class="help-panel">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="help-section">Global</div>
+    <table>
+      <tr><td>1</td><td>Overview tab</td></tr>
+      <tr><td>2</td><td>Terminal tab</td></tr>
+      <tr><td>j / &darr;</td><td>Next room card</td></tr>
+      <tr><td>k / &uarr;</td><td>Previous room card</td></tr>
+      <tr><td>Enter</td><td>Open terminal for focused card</td></tr>
+      <tr><td>Escape</td><td>Close modal / help</td></tr>
+      <tr><td>?</td><td>Toggle this help</td></tr>
+    </table>
+    <div class="help-section">Card focused</div>
+    <table>
+      <tr><td>t</td><td>Open terminal</td></tr>
+      <tr><td>s</td><td>Focus status select</td></tr>
+      <tr><td>m</td><td>Send inbox message</td></tr>
+    </table>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <div class="dot" id="dot"></div>
 
@@ -334,7 +395,15 @@ function cap(s){return s[0].toUpperCase()+s.slice(1)}
 function toast(msg, type='info') {
   const el = document.createElement('div');
   el.className = 'toast ' + type;
-  el.textContent = msg;
+  const txt = document.createElement('span');
+  txt.textContent = msg;
+  txt.style.flex = '1';
+  el.appendChild(txt);
+  const btn = document.createElement('button');
+  btn.className = 'toast-close';
+  btn.innerHTML = '&times;';
+  btn.onclick = () => el.remove();
+  el.appendChild(btn);
   $('toast-container').appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
 }
@@ -466,35 +535,43 @@ function renderRooms(rooms) {
   const el = $('rooms');
   el.style.display = 'grid';
   el.innerHTML = rooms.map(r => {
-    const sc = 's-' + r.status;
     const tc = r.tmux ? 'alive' : 'dead';
-    const tl = r.tmux ? '\u25cf live' : '\u25cb dead';
+    const tl = r.tmux ? '\u25cf tmux' : '\u25cb tmux';
     const n = esc(r.name);
     const ne = n.replace(/'/g, "\\'");
     const isMain = r.name === '@main';
-    return '<div class="card">' +
+    return '<div class="card" tabindex="0" role="listitem" data-room="' + n + '">' +
       '<div class="card-head">' +
         '<span class="card-name">' + n + '</span>' +
-        '<select class="status-select" onchange="doStatus(\'' + ne + '\',this.value)" title="Change status">' +
+        '<select class="status-select ss-' + r.status + '" onchange="doStatus(\'' + ne + '\',this.value)" title="Change status">' +
           statusOptions(r.status) +
         '</select>' +
-        '<span class="badge ' + sc + '">' + r.status + '</span>' +
-        '<span class="tmux ' + tc + '">' + tl + '</span>' +
       '</div>' +
       '<div class="meta">' +
         '<span>' + esc(r.role) + '</span>' +
-        '<span>\u2709 ' + r.inbox_count + (r.unread_count ? ' (' + r.unread_count + ' new)' : '') + '</span>' +
-        '<span>\u25c6 ' + r.molecule_count + '</span>' +
+        '<span class="tmux ' + tc + '" title="tmux session">' + tl + '</span>' +
+        '<span title="Inbox messages">\u2709 ' + r.inbox_count + (r.unread_count ? ' (' + r.unread_count + ' new)' : '') + '</span>' +
+        '<span title="Molecules">\u25c6 ' + r.molecule_count + '</span>' +
       '</div>' +
       '<div class="card-actions">' +
-        (r.tmux
-          ? '<button class="btn btn-sm btn-danger" onclick="doKill(\'' + ne + '\')">Kill</button>' +
-            '<button class="btn btn-sm" onclick="openTerminal(\'' + ne + '\')">Terminal</button>'
-          : '<button class="btn btn-sm btn-green" onclick="doLaunch(\'' + ne + '\',\'' + esc(r.role) + '\')">Launch</button>'
+        '<div class="btn-group">' +
+          (r.tmux
+            ? '<button class="btn btn-sm btn-danger" onclick="doKill(\'' + ne + '\')" title="Kill tmux session">Kill</button>' +
+              '<button class="btn btn-sm" onclick="openTerminal(\'' + ne + '\')" title="Open terminal (t)">Terminal</button>'
+            : '<button class="btn btn-sm btn-green" onclick="doLaunch(\'' + ne + '\',\'' + esc(r.role) + '\')" title="Launch tmux session">Launch</button>'
+          ) +
+        '</div>' +
+        '<div class="btn-sep"></div>' +
+        '<div class="btn-group">' +
+          '<button class="btn btn-sm" onclick="showTell(\'' + ne + '\')" title="Tell (send to session)">Tell</button>' +
+          '<button class="btn btn-sm" onclick="showSend(\'' + ne + '\')" title="Send inbox message (m)">Send</button>' +
+        '</div>' +
+        (isMain ? '' :
+          '<div class="btn-sep"></div>' +
+          '<div class="btn-group">' +
+            '<button class="btn btn-sm btn-danger" onclick="doRmRoom(\'' + ne + '\')" title="Remove room">Remove</button>' +
+          '</div>'
         ) +
-        '<button class="btn btn-sm" onclick="showTell(\'' + ne + '\')">Tell</button>' +
-        '<button class="btn btn-sm" onclick="showSend(\'' + ne + '\')">Send Message</button>' +
-        (isMain ? '' : '<button class="btn btn-sm btn-danger" onclick="doRmRoom(\'' + ne + '\')">Remove</button>') +
       '</div>' +
       '<button class="toggle" data-room="' + n + '" data-section="inbox">\u25bc Inbox</button>' +
       '<div class="panel open" data-panel="' + n + '|inbox"></div>' +
@@ -960,32 +1037,158 @@ async function pollTerminal() {
 }
 
 // ---------------------------------------------------------------------------
-// Terminal input bar (works in both WS and polling mode)
-// ---------------------------------------------------------------------------
-function termSendInput() {
-  const input = $('terminal-input');
-  const msg = input.value;
-  if (!msg) return;
-  input.value = '';
-
-  if (ws && wsConnected) {
-    ws.send(msg + '\r');
-  } else if (selected && termRoom) {
-    // Fallback: send via tell endpoint
-    fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/tell', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg})
-    }).then(() => toast('Sent via tell', 'info')).catch(() => toast('Send failed', 'error'));
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Close modals on backdrop click
 // ---------------------------------------------------------------------------
 document.querySelectorAll('.modal-bg').forEach(bg => {
   bg.addEventListener('click', e => {
     if (e.target === bg) bg.classList.remove('open');
   });
+});
+
+// ---------------------------------------------------------------------------
+// Keyboard navigation
+// ---------------------------------------------------------------------------
+let focusedCardIndex = -1;
+
+function getCards() {
+  return Array.from(document.querySelectorAll('#rooms .card[tabindex]'));
+}
+
+function focusCard(idx) {
+  const cards = getCards();
+  if (!cards.length) return;
+  focusedCardIndex = Math.max(0, Math.min(idx, cards.length - 1));
+  cards[focusedCardIndex].focus();
+}
+
+function isModalOpen() {
+  return !!document.querySelector('.modal-bg.open') || $('keyboard-help').classList.contains('open');
+}
+
+function isInputFocused() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+function closeAllModals() {
+  document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
+  $('keyboard-help').classList.remove('open');
+}
+
+function toggleHelp() {
+  $('keyboard-help').classList.toggle('open');
+}
+
+// Track which element opened a modal so we can restore focus
+let modalTrigger = null;
+
+// Wrap modal open functions to track trigger
+const _origShowAddRoom = showAddRoom;
+showAddRoom = function() { modalTrigger = document.activeElement; _origShowAddRoom(); };
+const _origShowTell = showTell;
+showTell = function(room) { modalTrigger = document.activeElement; _origShowTell(room); };
+const _origShowSend = showSend;
+showSend = function(room) { modalTrigger = document.activeElement; _origShowSend(room); };
+
+// Wrap modal close functions to restore focus
+const _origHideAddRoom = hideAddRoom;
+hideAddRoom = function() { _origHideAddRoom(); if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; } };
+const _origHideTell = hideTell;
+hideTell = function() { _origHideTell(); if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; } };
+const _origHideSend = hideSend;
+hideSend = function() { _origHideSend(); if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; } };
+
+// Focus trap inside modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    const openModal = document.querySelector('.modal-bg.open .modal');
+    if (!openModal) return;
+    const focusable = openModal.querySelectorAll('input,select,textarea,button,[tabindex]:not([tabindex="-1"])');
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+});
+
+document.addEventListener('keydown', e => {
+  // Escape always closes modals/help
+  if (e.key === 'Escape') {
+    if (isModalOpen()) {
+      e.preventDefault();
+      // Close modals via their hide functions (to restore focus)
+      if ($('modal-add').classList.contains('open')) { hideAddRoom(); return; }
+      if ($('modal-tell').classList.contains('open')) { hideTell(); return; }
+      if ($('modal-send').classList.contains('open')) { hideSend(); return; }
+      closeAllModals();
+      return;
+    }
+  }
+
+  // Don't handle shortcuts when typing in inputs or modals are open
+  if (isModalOpen() || isInputFocused()) return;
+
+  // Terminal tab captures all keys for xterm
+  if (currentTab === 'terminal') return;
+
+  const key = e.key;
+
+  // Global shortcuts
+  if (key === '1') { e.preventDefault(); switchTab('overview'); return; }
+  if (key === '2') { e.preventDefault(); switchTab('terminal'); return; }
+  if (key === '?') { e.preventDefault(); toggleHelp(); return; }
+
+  // Card navigation
+  if (key === 'j' || key === 'ArrowDown') {
+    e.preventDefault();
+    focusCard(focusedCardIndex + 1);
+    return;
+  }
+  if (key === 'k' || key === 'ArrowUp') {
+    e.preventDefault();
+    focusCard(focusedCardIndex - 1);
+    return;
+  }
+
+  // Card-level shortcuts (when a card is focused)
+  const card = document.activeElement;
+  if (card && card.classList.contains('card')) {
+    const roomName = card.dataset.room;
+    if (!roomName) return;
+
+    if (key === 'Enter' || key === 't') {
+      e.preventDefault();
+      openTerminal(roomName);
+      return;
+    }
+    if (key === 's') {
+      e.preventDefault();
+      const sel = card.querySelector('.status-select');
+      if (sel) sel.focus();
+      return;
+    }
+    if (key === 'm') {
+      e.preventDefault();
+      showSend(roomName);
+      return;
+    }
+  }
+});
+
+// Keep focusedCardIndex in sync when cards are clicked
+document.addEventListener('focusin', e => {
+  const card = e.target.closest('.card[tabindex]');
+  if (card) {
+    const cards = getCards();
+    const idx = cards.indexOf(card);
+    if (idx !== -1) focusedCardIndex = idx;
+  }
 });
 
 // ---------------------------------------------------------------------------
