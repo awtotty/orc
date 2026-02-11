@@ -68,6 +68,8 @@ def start():
     run_cmd = [
         "docker", "run", "-d",
         "--name", CONTAINER_NAME,
+        # Proper init process (tini) so signals work (needed for shutdown)
+        "--init",
         # Stable hostname so Claude Code auth tokens persist across restarts
         "--hostname", CONTAINER_NAME,
         # Mount orc root at same absolute path (project + worktrees + git refs all work)
@@ -143,6 +145,15 @@ def start():
 
     click.echo("Starting sandbox...")
     subprocess.run(run_cmd, check=True)
+
+    # Stable machine-id so Claude Code's fingerprint persists across container restarts
+    subprocess.run(
+        ["docker", "exec", "-u", "0", CONTAINER_NAME,
+         "bash", "-c",
+         "echo 'orc-sandbox-stable-machine-id-00000000' > /etc/machine-id"
+         " && echo 'orc-sandbox-stable-machine-id-00000000' > /var/lib/dbus/machine-id"],
+        check=True,
+    )
 
     # Ensure HOME, ~/.local/bin, and ~/.cache exist, and symlink claude
     # (Claude Code's config in ~/.claude records installMethod=native expecting ~/.local/bin/claude)

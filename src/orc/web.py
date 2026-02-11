@@ -423,9 +423,10 @@ class OrcHandler(BaseHTTPRequestHandler):
         self._json({"messages": messages, "molecules": molecules})
 
     def _post_shutdown(self):
-        import signal
+        import signal, threading
         self._json({"ok": True})
-        os.kill(1, signal.SIGTERM)
+        # Delay slightly so the HTTP response flushes before the container dies
+        threading.Timer(0.5, lambda: os.kill(1, signal.SIGTERM)).start()
 
     def _post_kill(self, project_name, room_name):
         projects = discover_projects()
