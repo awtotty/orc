@@ -120,19 +120,17 @@ class OrcProject:
             click.echo(f"Room '{room_name}' not found, creating it...")
             self.add_room(room_name, role=role)
 
-        # Bootstrap tmux session with desired window order: dash, bash, main
-        # If session doesn't exist yet, create it with dash as window 0
+        # Ensure tmux session and dashboard exist
         dash_name = ".orc-dash"
         if not session_exists():
             subprocess.run(
-                ["tmux", "new-session", "-d", "-s", "orc",
-                 "-n", dash_name, "-c", self.root,
-                 "orc", "_dash-server", "--port", "7777"],
+                ["tmux", "new-session", "-d", "-s", "orc", "-c", self.root],
                 check=True, capture_output=True,
             )
-            # Window 1: bare shell
             subprocess.run(
-                ["tmux", "new-window", "-t", "orc:", "-c", self.root],
+                ["tmux", "new-window", "-t", "orc:", "-n", dash_name,
+                 "-c", self.root,
+                 "orc", "_dash-server", "--port", "7777"],
                 check=True, capture_output=True,
             )
             click.echo("orc dashboard -> http://localhost:7777")

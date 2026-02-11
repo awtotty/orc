@@ -183,8 +183,8 @@ def status():
 
 
 def attach():
-    """Attach to the sandbox container and launch orc."""
+    """Attach to the sandbox container with tmux (bash + dash)."""
     if not _is_running():
         click.echo("Sandbox is not running. Run `orc sandbox start` first.", err=True)
         sys.exit(1)
-    os.execvp("docker", ["docker", "exec", "-it", CONTAINER_NAME, "orc", "attach"])
+    os.execvp("docker", ["docker", "exec", "-it", CONTAINER_NAME, "orc", "_tmux-init"])

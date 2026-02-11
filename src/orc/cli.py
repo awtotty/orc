@@ -275,6 +275,36 @@ def dash_server(port):
     run_server(port=port)
 
 
+@main.command(name="_tmux-init", hidden=True)
+def tmux_init():
+    """Internal: bootstrap tmux session (bash + dash) and attach."""
+    import subprocess
+    from orc.tmux import session_exists, open_window, select_window, attach_orc_session
+
+    proj = _require_project(None)
+
+    dash_name = ".orc-dash"
+    if not session_exists():
+        subprocess.run(
+            ["tmux", "new-session", "-d", "-s", "orc", "-c", proj.root],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["tmux", "new-window", "-t", "orc:", "-n", dash_name,
+             "-c", proj.root,
+             "orc", "_dash-server", "--port", "7777"],
+            check=True, capture_output=True,
+        )
+        click.echo("orc dashboard -> http://localhost:7777")
+
+    import os
+    subprocess.run(
+        ["tmux", "select-window", "-t", "orc:^"],
+        capture_output=True,
+    )
+    os.execvp("tmux", ["tmux", "attach", "-t", "orc"])
+
+
 # ---------------------------------------------------------------------------
 # Start (sandbox shortcut)
 # ---------------------------------------------------------------------------
