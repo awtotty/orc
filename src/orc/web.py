@@ -746,6 +746,7 @@ class OrcHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(data)
         except BrokenPipeError:
@@ -762,7 +763,7 @@ class OrcHandler(BaseHTTPRequestHandler):
         if alive:
             try:
                 r = subprocess.run(
-                    ["tmux", "capture-pane", "-t", target, "-p", "-e", "-S", "-500"],
+                    ["tmux", "capture-pane", "-t", target, "-p", "-S", "-500"],
                     capture_output=True, text=True, timeout=5,
                 )
                 if r.returncode == 0:
@@ -804,6 +805,7 @@ class OrcHandler(BaseHTTPRequestHandler):
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(body.encode())
         except BrokenPipeError:

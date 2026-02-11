@@ -804,7 +804,7 @@ function updateConnBadge(mode) {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket terminal
+// WebSocket terminal (PTY-bridged — real terminal stream)
 // ---------------------------------------------------------------------------
 function tryWebSocket() {
   if (!selected || !termRoom) return;
@@ -814,26 +814,25 @@ function tryWebSocket() {
   initXterm();
 
   ws = new WebSocket(wsUrl);
+  ws.binaryType = 'arraybuffer';
   ws.onopen = () => {
     wsConnected = true;
     termMode = 'ws';
     updateConnBadge('ws');
+    // Tell server our terminal size
+    sendResize();
   };
   ws.onmessage = (ev) => {
-    try {
-      const msg = JSON.parse(ev.data);
-      if (msg.type === 'init' && xterm) {
-        xterm.write(msg.data || '');
-      } else if (msg.type === 'output' && xterm) {
-        xterm.clear();
-        xterm.write(msg.data || '');
-      }
-    } catch(e) {}
+    if (!xterm) return;
+    if (ev.data instanceof ArrayBuffer) {
+      xterm.write(new Uint8Array(ev.data));
+    } else {
+      xterm.write(ev.data);
+    }
   };
   ws.onclose = () => {
     wsConnected = false;
     if (termMode === 'ws') {
-      // Try reconnect after 2s, fall back to polling if it fails again
       setTimeout(() => {
         if (currentTab === 'terminal' && termRoom) {
           startPollingFallback();
@@ -842,11 +841,21 @@ function tryWebSocket() {
     }
   };
   ws.onerror = () => {
-    // WebSocket not available, fall back to polling
     wsConnected = false;
     if (ws) { ws.onclose = null; ws.close(); ws = null; }
     startPollingFallback();
   };
+}
+
+function sendResize() {
+  if (!ws || !wsConnected || !fitAddon) return;
+  try {
+    fitAddon.fit();
+    const dims = fitAddon.proposeDimensions();
+    if (dims) {
+      ws.send(JSON.stringify({type: 'resize', rows: dims.rows, cols: dims.cols}));
+    }
+  } catch(e) {}
 }
 
 function initXterm() {
@@ -873,7 +882,6 @@ function initXterm() {
     fontSize: 14,
     fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
     cursorBlink: true,
-    convertEol: true,
     scrollback: 5000,
   });
 
@@ -882,34 +890,37 @@ function initXterm() {
   xterm.open($('xterm-container'));
   fitAddon.fit();
 
-  xterm.onKey(({key, domEvent}) => {
+  // Send raw terminal data (includes escape sequences for arrows, ctrl+c, etc.)
+  xterm.onData(data => {
     if (ws && wsConnected) {
-      if (domEvent.key === 'Enter') {
-        ws.send(JSON.stringify({type: 'key', data: 'Enter'}));
-      } else {
-        ws.send(JSON.stringify({type: 'input', data: key}));
-      }
+      ws.send(data);
     }
   });
 
-  window.addEventListener('resize', () => { if (fitAddon) fitAddon.fit(); });
+  window.addEventListener('resize', () => {
+    if (fitAddon) fitAddon.fit();
+    sendResize();
+  });
 }
 
 // ---------------------------------------------------------------------------
-// Polling fallback
+// Polling fallback (uses xterm.js for proper ANSI rendering)
 // ---------------------------------------------------------------------------
+let lastPollContent = '';
+
 function startPollingFallback() {
   if (pollTimer) return;
   termMode = 'poll';
   updateConnBadge('poll');
 
-  // Hide xterm, show fallback pre
-  if (xterm) { xterm.dispose(); xterm = null; fitAddon = null; }
-  $('xterm-container').style.display = 'none';
-  $('terminal-fallback').classList.add('active');
+  // Keep xterm.js for rendering — it handles ANSI natively
+  if (!xterm) initXterm();
+  $('xterm-container').style.display = '';
+  $('terminal-fallback').classList.remove('active');
 
+  lastPollContent = '';
   pollTerminal();
-  pollTimer = setInterval(pollTerminal, 500);
+  pollTimer = setInterval(pollTerminal, 300);
 }
 
 async function pollTerminal() {
@@ -917,14 +928,12 @@ async function pollTerminal() {
   try {
     const res = await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/terminal');
     const data = await res.json();
-    const content = data.content || data.data || (typeof data === 'string' ? data : '');
-    const fb = $('terminal-fallback');
-    if (ansi) {
-      fb.innerHTML = ansi.ansi_to_html(content);
-    } else {
-      fb.textContent = content;
+    const content = data.content || '';
+    if (content && content !== lastPollContent) {
+      lastPollContent = content;
+      xterm.reset();
+      xterm.write(content);
     }
-    fb.scrollTop = fb.scrollHeight;
   } catch(e) {}
 }
 
@@ -938,7 +947,7 @@ function termSendInput() {
   input.value = '';
 
   if (ws && wsConnected) {
-    ws.send(JSON.stringify({type: 'input', data: msg + '\n'}));
+    ws.send(msg + '\n');
   } else if (selected && termRoom) {
     // Fallback: send via tell endpoint
     fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/tell', {

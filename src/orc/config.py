@@ -6,7 +6,7 @@ import tomllib
 
 DEFAULTS = {
     "sandbox": {
-        "ports": ["7777:7777"],
+        "ports": ["7777:7777", "7778:7778"],
         "packages": [],
         "mounts": [],
         "env": [],

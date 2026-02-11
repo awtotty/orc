@@ -1,8 +1,16 @@
-"""WebSocket terminal server — bridges browser connections to tmux panes."""
+"""WebSocket terminal server — bridges browser to tmux panes via PTY."""
 
 import asyncio
+import fcntl
 import json
+import os
+import pty
+import select
+import signal
+import struct
 import subprocess
+import termios
+from urllib.parse import unquote
 
 import websockets
 
@@ -15,7 +23,6 @@ def _tmux_target(project_name, room_name):
 def _tmux_alive(target):
     """Check if a tmux target window exists."""
     try:
-        # Extract session and window from target like "orc:proj-room"
         session, window = target.split(":", 1)
         r = subprocess.run(
             ["tmux", "list-windows", "-t", session, "-F", "#{window_name}"],
@@ -26,36 +33,21 @@ def _tmux_alive(target):
         return False
 
 
-def _capture_pane(target, scrollback=False):
-    """Capture tmux pane content with ANSI escapes."""
-    cmd = ["tmux", "capture-pane", "-t", target, "-p", "-e"]
-    if scrollback:
-        cmd.extend(["-S", "-500"])
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-        return r.stdout if r.returncode == 0 else ""
-    except Exception:
-        return ""
-
-
-def _send_to_tmux(target, text, literal=True):
-    """Send keys to a tmux pane."""
-    cmd = ["tmux", "send-keys", "-t", target]
-    if literal:
-        cmd.extend(["-l", text])
-    else:
-        cmd.append(text)
-    try:
-        subprocess.run(cmd, capture_output=True, timeout=5)
-    except Exception:
-        pass
+def _read_pty(fd):
+    """Read available data from PTY fd with short timeout."""
+    r, _, _ = select.select([fd], [], [], 0.02)
+    if r:
+        try:
+            return os.read(fd, 65536)
+        except OSError:
+            return None
+    return None
 
 
 async def _handle_connection(websocket):
-    """Handle a single WebSocket connection."""
-    # Parse path: /terminal/{project_name}/{room_name}
-    path = websocket.request.path if hasattr(websocket, 'request') else ""
-    parts = path.strip("/").split("/")
+    """Handle a WebSocket connection by bridging to a tmux pane via PTY."""
+    raw_path = websocket.request.path if hasattr(websocket, "request") else ""
+    parts = [unquote(p) for p in raw_path.strip("/").split("/")]
     if len(parts) != 3 or parts[0] != "terminal":
         await websocket.close(1008, "Invalid path. Use /terminal/{project}/{room}")
         return
@@ -68,43 +60,91 @@ async def _handle_connection(websocket):
         await websocket.close(1008, f"Room '{room_name}' tmux window not found")
         return
 
-    # Send initial scrollback
-    scrollback = _capture_pane(target, scrollback=True)
-    await websocket.send(json.dumps({"type": "init", "data": scrollback}))
+    # Create PTY pair and spawn tmux attach
+    master_fd, slave_fd = pty.openpty()
+    fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
 
-    last_content = scrollback
+    pid = os.fork()
+    if pid == 0:
+        # Child: become session leader, attach slave as controlling terminal
+        os.close(master_fd)
+        os.setsid()
+        fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
+        os.dup2(slave_fd, 0)
+        os.dup2(slave_fd, 1)
+        os.dup2(slave_fd, 2)
+        if slave_fd > 2:
+            os.close(slave_fd)
+        os.execvp("tmux", ["tmux", "attach-session", "-t", target])
+        os._exit(1)
+
+    os.close(slave_fd)
+
+    # Non-blocking reads on master
+    flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+    fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+    loop = asyncio.get_event_loop()
+    closed = False
 
     async def stream_output():
-        """Poll tmux pane and send updates."""
-        nonlocal last_content
-        while True:
-            await asyncio.sleep(0.1)
-            if not _tmux_alive(target):
-                await websocket.send(json.dumps({"type": "disconnected", "data": "tmux window closed"}))
-                break
-            content = _capture_pane(target)
-            if content != last_content:
-                last_content = content
-                await websocket.send(json.dumps({"type": "output", "data": content}))
+        """Read PTY output and send to browser as binary."""
+        nonlocal closed
+        while not closed:
+            data = await loop.run_in_executor(None, _read_pty, master_fd)
+            if data:
+                try:
+                    await websocket.send(data)
+                except websockets.exceptions.ConnectionClosed:
+                    break
+            else:
+                await asyncio.sleep(0.01)
 
     async def handle_input():
-        """Receive input from client and forward to tmux."""
-        async for raw in websocket:
-            try:
-                msg = json.loads(raw)
-            except (json.JSONDecodeError, TypeError):
-                continue
-            msg_type = msg.get("type")
-            data = msg.get("data", "")
-            if msg_type == "input":
-                _send_to_tmux(target, data, literal=True)
-            elif msg_type == "key":
-                _send_to_tmux(target, data, literal=False)
+        """Receive browser input and write to PTY."""
+        nonlocal closed
+        try:
+            async for message in websocket:
+                if isinstance(message, bytes):
+                    os.write(master_fd, message)
+                elif isinstance(message, str):
+                    # Check for resize command
+                    if message.startswith("{"):
+                        try:
+                            msg = json.loads(message)
+                            if msg.get("type") == "resize":
+                                rows = msg.get("rows", 40)
+                                cols = msg.get("cols", 120)
+                                fcntl.ioctl(
+                                    master_fd,
+                                    termios.TIOCSWINSZ,
+                                    struct.pack("HHHH", rows, cols, 0, 0),
+                                )
+                                os.kill(pid, signal.SIGWINCH)
+                                continue
+                        except (json.JSONDecodeError, TypeError, OSError):
+                            pass
+                    os.write(master_fd, message.encode())
+        except (websockets.exceptions.ConnectionClosed, OSError):
+            pass
+        finally:
+            closed = True
 
     try:
         await asyncio.gather(stream_output(), handle_input())
     except websockets.exceptions.ConnectionClosed:
         pass
+    finally:
+        closed = True
+        os.close(master_fd)
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            pass
 
 
 async def run_terminal_server(host="127.0.0.1", port=7778):

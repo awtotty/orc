@@ -9,6 +9,7 @@ src/orc/project.py
 src/orc/roles.py
 src/orc/room.py
 src/orc/sandbox.py
+src/orc/terminal.py
 src/orc/tmux.py
 src/orc/universe.py
 src/orc/web.py
