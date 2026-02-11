@@ -359,6 +359,8 @@ let wsConnected = false;
 let pollTimer = null;
 let termMode = null; // 'ws' | 'poll' | null
 let ansi = null;
+let pollInputBuffer = '';
+let pollInputTimer = null;
 
 // ---------------------------------------------------------------------------
 // Init
@@ -894,6 +896,11 @@ function initXterm() {
   xterm.onData(data => {
     if (ws && wsConnected) {
       ws.send(data);
+    } else if (selected && termRoom) {
+      // Polling fallback: batch keystrokes and send via HTTP
+      pollInputBuffer += data;
+      if (pollInputTimer) clearTimeout(pollInputTimer);
+      pollInputTimer = setTimeout(flushPollInput, 16);
     }
   });
 
@@ -901,6 +908,20 @@ function initXterm() {
     if (fitAddon) fitAddon.fit();
     sendResize();
   });
+}
+
+// ---------------------------------------------------------------------------
+// Polling input flush (batches keystrokes for HTTP fallback)
+// ---------------------------------------------------------------------------
+function flushPollInput() {
+  if (!pollInputBuffer || !selected || !termRoom) return;
+  const data = pollInputBuffer;
+  pollInputBuffer = '';
+  pollInputTimer = null;
+  fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/terminal/input', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({data: data})
+  }).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------
@@ -947,7 +968,7 @@ function termSendInput() {
   input.value = '';
 
   if (ws && wsConnected) {
-    ws.send(msg + '\n');
+    ws.send(msg + '\r');
   } else if (selected && termRoom) {
     // Fallback: send via tell endpoint
     fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/tell', {

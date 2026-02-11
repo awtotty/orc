@@ -512,6 +512,7 @@ POST_ROUTES = [
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/rm$"), "rm_room"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/attach$"), "attach"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/tell$"), "tell"),
+    (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/terminal/input$"), "terminal_input"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/send$"), "send_msg"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/status$"), "set_status"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/kill$"), "kill"),
@@ -643,11 +644,36 @@ class OrcHandler(BaseHTTPRequestHandler):
             self._json({"error": "message is required"}, 400)
             return
         proj = OrcProject(projects[project_name])
-        ok = proj.tell(room_name, message)
+        try:
+            ok = proj.tell(room_name, message)
+        except SystemExit:
+            self._json({"error": f"room '{room_name}' not found"}, 404)
+            return
         if not ok:
             self._json({"error": f"room '{room_name}' is not running"}, 400)
             return
         self._json({"ok": True})
+
+    def _post_terminal_input(self, project_name, room_name):
+        """Send raw terminal input to a room's tmux pane (no Enter appended)."""
+        projects = discover_projects()
+        if project_name not in projects:
+            self._json({"error": "project not found"}, 404)
+            return
+        body = self._read_body()
+        data = body.get("data", "")
+        if not data:
+            self._json({"error": "data is required"}, 400)
+            return
+        target = f"orc:{project_name}-{room_name.lstrip('@')}"
+        try:
+            subprocess.run(
+                ["tmux", "send-keys", "-t", target, "-l", data],
+                check=True, capture_output=True, timeout=5,
+            )
+            self._json({"ok": True})
+        except Exception:
+            self._json({"error": "failed to send input"}, 500)
 
     def _post_send_msg(self, project_name, room_name):
         projects = discover_projects()
