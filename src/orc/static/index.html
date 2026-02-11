@@ -67,15 +67,23 @@ body{
   background:var(--surface);align-items:center;gap:12px
 }
 #topbar.visible{display:flex}
-#project-title{font-size:18px;font-weight:600;flex:1}
+#project-title{font-size:18px;font-weight:600;margin-right:8px}
 .tab-group{display:flex;gap:4px}
 .tab{
-  padding:6px 16px;border-radius:6px;border:1px solid var(--border);
-  background:transparent;color:var(--muted);font-size:13px;cursor:pointer;
-  font-family:inherit;transition:all .15s
+  padding:7px 20px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:14px;font-weight:500;
+  cursor:pointer;font-family:inherit;transition:all .15s
 }
 .tab:hover{color:var(--text);border-color:var(--muted)}
 .tab.active{background:var(--surface2);color:var(--accent);border-color:var(--accent)}
+.topbar-sep{width:1px;height:20px;background:var(--border);align-self:center;margin:0 4px}
+.btn-icon{
+  width:28px;height:28px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:14px;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;padding:0;flex-shrink:0
+}
+.btn-icon:hover{color:var(--text);border-color:var(--muted)}
 .btn{
   padding:6px 14px;border-radius:6px;border:1px solid var(--border);
   background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;
@@ -278,8 +286,11 @@ body{
       <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
       <button class="tab" data-tab="terminal" onclick="switchTab('terminal')">Terminal</button>
     </div>
+    <div class="topbar-sep"></div>
     <button class="btn btn-sm" onclick="doClean()">Clean</button>
     <button class="btn btn-sm" onclick="showAddRoom()">+ Add Room</button>
+    <div style="flex:1"></div>
+    <button class="btn-icon" onclick="toggleHelp()" title="Keyboard shortcuts (?)">?</button>
   </div>
 
   <div id="content">
