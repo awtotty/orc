@@ -8,13 +8,18 @@ def _in_tmux():
     return os.environ.get("TMUX") is not None
 
 
-def ensure_orc_session():
-    """Ensure the main orc tmux session exists."""
+def session_exists():
+    """Check if the orc tmux session exists."""
     result = subprocess.run(
         ["tmux", "has-session", "-t", ORC_SESSION],
         capture_output=True,
     )
-    if result.returncode != 0:
+    return result.returncode == 0
+
+
+def ensure_orc_session():
+    """Ensure the main orc tmux session exists."""
+    if not session_exists():
         subprocess.run(
             ["tmux", "new-session", "-d", "-s", ORC_SESSION],
             check=True,
