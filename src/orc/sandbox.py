@@ -161,8 +161,8 @@ def start():
     subprocess.run(
         ["docker", "exec", "-u", "0", CONTAINER_NAME,
          "bash", "-c",
-         f"mkdir -p {home}/.local/bin {home}/.cache"
-         f" && chown {uid_gid} {home} {home}/.local {home}/.local/bin {home}/.cache"
+         f"mkdir -p {home}/.local/bin {home}/.local/share {home}/.cache"
+         f" && chown {uid_gid} {home} {home}/.local {home}/.local/bin {home}/.local/share {home}/.cache"
          f" && ln -sf /usr/local/bin/claude {home}/.local/bin/claude"],
         check=True,
     )

@@ -14,10 +14,13 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     ripgrep \
     unzip \
-    nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /usr/lib/python*/EXTERNALLY-MANAGED
+
+# Install Node.js 22 from NodeSource (Ubuntu apt only has 18)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install latest Neovim from GitHub releases
 RUN curl -Lo /tmp/nvim.tar.gz https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz \
