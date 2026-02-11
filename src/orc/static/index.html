@@ -371,13 +371,13 @@ body{
 <div class="modal-bg" id="modal-add-project">
   <div class="modal">
     <h3>Add Project</h3>
-    <label>Path <span style="color:var(--red)">*</span></label>
-    <input id="add-project-path" placeholder="/absolute/path/to/git/repo">
-    <label>Name (optional, defaults to directory name)</label>
+    <label>Git URL <span style="color:var(--red)">*</span></label>
+    <input id="add-project-url" placeholder="https://github.com/user/repo.git">
+    <label>Name (optional, defaults to repo name)</label>
     <input id="add-project-name" placeholder="e.g. my-project">
     <div class="modal-actions">
       <button class="btn" onclick="hideAddProject()">Cancel</button>
-      <button class="btn btn-primary" onclick="doAddProject()">Add</button>
+      <button class="btn btn-primary" onclick="doAddProject()">Clone</button>
     </div>
   </div>
 </div>
@@ -828,30 +828,31 @@ async function doAddRoom(andLaunch) {
 // ---------------------------------------------------------------------------
 // Add Project
 // ---------------------------------------------------------------------------
-function showAddProject() { $('modal-add-project').classList.add('open'); $('add-project-path').value = ''; $('add-project-name').value = ''; $('add-project-path').focus(); }
+function showAddProject() { $('modal-add-project').classList.add('open'); $('add-project-url').value = ''; $('add-project-name').value = ''; $('add-project-url').focus(); }
 function hideAddProject() { $('modal-add-project').classList.remove('open'); }
 
 async function doAddProject() {
-  const path = $('add-project-path').value.trim();
+  const url = $('add-project-url').value.trim();
   const name = $('add-project-name').value.trim();
-  if (!path) return;
+  if (!url) return;
   hideAddProject();
+  toast('Cloning repository\u2026', 'info');
   try {
     const res = await fetch('/api/projects/add', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({path, name: name || undefined})
+      body: JSON.stringify({url, name: name || undefined})
     });
     const data = await res.json();
     if (data.error) { toast('Error: ' + data.error, 'error'); return; }
-    toast('Project ' + data.name + ' added', 'success');
+    toast('Project ' + data.name + ' cloned', 'success');
     projects = await api('/api/projects');
     renderSidebar();
     await sel(data.name);
-  } catch(e) { toast('Add project failed', 'error'); }
+  } catch(e) { toast('Clone failed', 'error'); }
 }
 
 async function doRmProject(name) {
-  if (!confirm('Remove project "' + name + '" from the dashboard?\n\nThis only removes the symlink — the repository itself is not deleted.')) return;
+  if (!confirm('Remove project "' + name + '"?\n\nThis deletes the cloned repo from orc/projects/.')) return;
   try {
     const res = await fetch('/api/projects/' + encodeURIComponent(name) + '/rm', {
       method: 'POST'

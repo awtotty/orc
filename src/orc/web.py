@@ -192,28 +192,50 @@ class OrcHandler(BaseHTTPRequestHandler):
 
     def _post_add_project(self):
         body = self._read_body()
-        path = body.get("path", "").strip()
+        url = body.get("url", "").strip()
         name = body.get("name", "").strip() or None
-        if not path:
-            self._json({"error": "path is required"}, 400)
+        if not url:
+            self._json({"error": "url is required"}, 400)
+            return
+        # Derive name from URL if not provided
+        if name is None:
+            name = url.rstrip("/").rsplit("/", 1)[-1]
+            if name.endswith(".git"):
+                name = name[:-4]
+        if not name:
+            self._json({"error": "could not derive project name from URL"}, 400)
+            return
+        uni = Universe()
+        uni.ensure_dir()
+        dest = os.path.join(uni.projects_dir, name)
+        if os.path.exists(dest):
+            self._json({"error": f"project '{name}' already exists"}, 400)
             return
         try:
-            registered = Universe().add_project(path, name=name)
-        except ValueError as e:
-            self._json({"error": str(e)}, 400)
+            r = subprocess.run(
+                ["git", "clone", url, dest],
+                capture_output=True, text=True, timeout=120,
+            )
+            if r.returncode != 0:
+                self._json({"error": r.stderr.strip() or "git clone failed"}, 400)
+                return
+        except subprocess.TimeoutExpired:
+            self._json({"error": "git clone timed out"}, 400)
             return
-        # Auto-initialize if not yet an orc project
-        real = os.path.realpath(path)
-        if not os.path.isdir(os.path.join(real, ".orc")):
-            OrcProject(real).init()
-        self._json({"ok": True, "name": registered})
+        OrcProject(dest).init()
+        self._json({"ok": True, "name": name})
 
     def _post_rm_project(self, project_name):
-        try:
-            Universe().remove_project(project_name)
-        except ValueError as e:
-            self._json({"error": str(e)}, 400)
+        import shutil
+        uni = Universe()
+        entry = os.path.join(uni.projects_dir, project_name)
+        if not os.path.exists(entry) and not os.path.islink(entry):
+            self._json({"error": f"project '{project_name}' not found"}, 400)
             return
+        if os.path.islink(entry):
+            os.unlink(entry)
+        else:
+            shutil.rmtree(entry)
         self._json({"ok": True})
 
     def _post_add_room(self, project_name):
