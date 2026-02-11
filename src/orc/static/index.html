@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>orc</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;
+  --border:#30363d;--text:#e6edf3;--muted:#8b949e;
+  --accent:#58a6ff;--green:#3fb950;--yellow:#d29922;
+  --red:#f85149;--purple:#bc8cff
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden
+}
+
+/* Sidebar */
+#sidebar{
+  width:220px;min-width:220px;background:var(--surface);
+  border-right:1px solid var(--border);display:flex;flex-direction:column
+}
+#sidebar h1{
+  padding:20px;font-size:22px;font-weight:700;color:var(--accent);
+  border-bottom:1px solid var(--border);letter-spacing:3px
+}
+.group-header{
+  padding:12px 20px;font-size:12px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;cursor:pointer;
+  display:flex;align-items:center;gap:6px;user-select:none
+}
+.group-header:hover{color:var(--text)}
+.group-arrow{font-size:10px;transition:transform .15s}
+.group-arrow.collapsed{transform:rotate(-90deg)}
+.proj{
+  padding:10px 20px 10px 34px;cursor:pointer;border-left:3px solid transparent;
+  font-size:14px;transition:all .15s
+}
+.proj:hover{background:var(--surface2)}
+.proj.active{background:var(--surface2);border-left-color:var(--accent);color:var(--accent)}
+#project-list{overflow-y:auto;flex:1}
+
+/* Main layout */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* Top bar */
+#topbar{
+  display:none;padding:12px 24px;border-bottom:1px solid var(--border);
+  background:var(--surface);align-items:center;gap:12px
+}
+#topbar.visible{display:flex}
+#project-title{font-size:18px;font-weight:600;flex:1}
+.tab-group{display:flex;gap:4px}
+.tab{
+  padding:6px 16px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:13px;cursor:pointer;
+  font-family:inherit;transition:all .15s
+}
+.tab:hover{color:var(--text);border-color:var(--muted)}
+.tab.active{background:var(--surface2);color:var(--accent);border-color:var(--accent)}
+.btn{
+  padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;
+  font-family:inherit;transition:all .15s
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-danger{color:var(--red)}
+.btn-danger:hover{border-color:var(--red);background:rgba(248,81,73,.1);color:var(--red)}
+.btn-primary{background:rgba(88,166,255,.15);color:var(--accent);border-color:var(--accent)}
+.btn-primary:hover{background:rgba(88,166,255,.25)}
+.btn-green{color:var(--green)}
+.btn-green:hover{border-color:var(--green);background:rgba(63,185,80,.1)}
+
+/* Content area */
+#content{flex:1;overflow-y:auto;padding:24px}
+#placeholder{
+  display:flex;align-items:center;justify-content:center;
+  height:100%;color:var(--muted);font-size:18px
+}
+
+/* Room grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.card-head{padding:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-name{font-size:16px;font-weight:600;flex:1;min-width:100px}
+.badge{
+  font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
+  text-transform:uppercase;letter-spacing:.5px
+}
+.s-active{background:rgba(63,185,80,.15);color:var(--green)}
+.s-ready{background:rgba(210,153,34,.15);color:var(--yellow)}
+.s-blocked{background:rgba(248,81,73,.15);color:var(--red)}
+.s-done{background:rgba(63,185,80,.15);color:var(--green)}
+.s-exited,.s-unknown{background:rgba(139,148,158,.15);color:var(--muted)}
+.tmux{font-size:12px}
+.tmux.alive{color:var(--green)}
+.tmux.dead{color:var(--muted)}
+.meta{padding:10px 16px;display:flex;gap:16px;font-size:13px;color:var(--muted)}
+.card-actions{
+  padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;
+  border-top:1px solid var(--border)
+}
+.status-select{
+  padding:3px 8px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:12px;
+  font-family:inherit;cursor:pointer
+}
+.status-select:focus{outline:none;border-color:var(--accent)}
+
+/* Toggle panels */
+.toggle{
+  display:block;width:100%;padding:10px 16px;background:0 0;border:0;
+  border-top:1px solid var(--border);color:var(--muted);font-size:13px;
+  cursor:pointer;text-align:left;font-family:inherit
+}
+.toggle:hover{color:var(--text)}
+.panel{
+  display:none;padding:12px 16px;border-top:1px solid var(--border);
+  font-size:13px;max-height:300px;overflow-y:auto
+}
+.panel.open{display:block}
+.msg{padding:8px 0;border-bottom:1px solid var(--border)}
+.msg:last-child{border-bottom:0}
+.msg-from{font-weight:600;color:var(--accent);font-size:12px}
+.msg-ts{font-size:11px;color:var(--muted);margin-left:8px}
+.msg-body{margin-top:4px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.msg.unread{border-left:2px solid var(--accent);padding-left:8px}
+.mol-title{font-weight:600;margin-bottom:6px;color:var(--purple)}
+.mol-sep{border-color:var(--border);margin:8px 0}
+.atom{padding:6px 0;display:flex;align-items:center;gap:8px}
+.atom-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.atom-dot.todo{background:var(--muted)}
+.atom-dot.in_progress{background:var(--accent)}
+.atom-dot.done{background:var(--green)}
+.empty{color:var(--muted);font-style:italic;padding:8px 0}
+
+/* Terminal view */
+#terminal-view{
+  display:none;flex:1;flex-direction:column;overflow:hidden;padding:0
+}
+#terminal-view.active{display:flex}
+#terminal-header{
+  padding:10px 24px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);background:var(--surface)
+}
+#terminal-header label{font-size:13px;color:var(--muted)}
+#room-select{
+  padding:6px 10px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit
+}
+#room-select:focus{outline:none;border-color:var(--accent)}
+.conn-badge{
+  font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;
+  letter-spacing:.5px
+}
+.conn-ws{background:rgba(63,185,80,.15);color:var(--green)}
+.conn-poll{background:rgba(210,153,34,.15);color:var(--yellow)}
+.conn-off{background:rgba(139,148,158,.15);color:var(--muted)}
+#xterm-container{flex:1;padding:4px;overflow:hidden}
+#terminal-fallback{
+  flex:1;overflow:auto;padding:16px;background:#000;
+  font-family:'Menlo','Monaco','Courier New',monospace;font-size:13px;
+  line-height:1.4;display:none
+}
+#terminal-fallback.active{display:block}
+#terminal-input-bar{
+  display:flex;gap:8px;padding:10px 24px;
+  border-top:1px solid var(--border);background:var(--surface)
+}
+#terminal-input{
+  flex:1;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit
+}
+#terminal-input:focus{outline:none;border-color:var(--accent)}
+
+/* Modal */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+  align-items:center;justify-content:center;z-index:100
+}
+.modal-bg.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:24px;width:400px;max-width:90vw
+}
+.modal h3{margin-bottom:16px;font-size:16px}
+.modal label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.modal input,.modal select,.modal textarea{
+  width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;
+  margin-bottom:12px
+}
+.modal textarea{resize:vertical;min-height:60px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+
+/* Toast */
+#toast-container{
+  position:fixed;top:16px;right:16px;z-index:200;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none
+}
+.toast{
+  padding:10px 16px;border-radius:8px;font-size:13px;
+  background:var(--surface);border:1px solid var(--border);
+  box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:auto;
+  animation:toast-in .3s ease;max-width:360px
+}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.info{border-color:var(--accent);color:var(--accent)}
+@keyframes toast-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+
+/* Loading dot */
+.dot{
+  position:fixed;top:12px;right:12px;width:8px;height:8px;border-radius:50%;
+  background:var(--green);opacity:.5;transition:opacity .3s;z-index:300
+}
+.dot.loading{opacity:1;background:var(--accent)}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <h1>orc</h1>
+  <div id="project-list"></div>
+</nav>
+
+<div id="main">
+  <div id="topbar">
+    <span id="project-title"></span>
+    <div class="tab-group">
+      <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+      <button class="tab" data-tab="terminal" onclick="switchTab('terminal')">Terminal</button>
+    </div>
+    <button class="btn btn-sm" onclick="doClean()">Clean</button>
+    <button class="btn btn-sm" onclick="showAddRoom()">+ Add Room</button>
+  </div>
+
+  <div id="content">
+    <div id="placeholder">Select a project</div>
+    <div id="rooms" class="grid" style="display:none"></div>
+  </div>
+
+  <div id="terminal-view">
+    <div id="terminal-header">
+      <label>Room:</label>
+      <select id="room-select" onchange="termSelectRoom()"></select>
+      <span id="conn-indicator" class="conn-badge conn-off">--</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-sm" onclick="switchTab('overview')">Back to Overview</button>
+    </div>
+    <div id="xterm-container"></div>
+    <div id="terminal-fallback"></div>
+    <div id="terminal-input-bar">
+      <input id="terminal-input" placeholder="Type a command and press Enter..." onkeydown="if(event.key==='Enter')termSendInput()">
+      <button class="btn btn-sm" onclick="termSendInput()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Room Modal -->
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <h3>Add Room</h3>
+    <label>Room name</label>
+    <input id="add-room-name" placeholder="e.g. worker-2">
+    <label>Role</label>
+    <select id="add-room-role">
+      <option value="worker">worker</option>
+      <option value="orchestrator">orchestrator</option>
+      <option value="merger">merger</option>
+    </select>
+    <label>Initial message (optional)</label>
+    <textarea id="add-room-message" placeholder="Message to send on launch..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideAddRoom()">Cancel</button>
+      <button class="btn" onclick="doAddRoom()">Add</button>
+      <button class="btn btn-primary" onclick="doAddRoom(true)">Add &amp; Launch</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tell Modal -->
+<div class="modal-bg" id="modal-tell">
+  <div class="modal">
+    <h3>Tell <span id="tell-room-name"></span></h3>
+    <label>Message to send to session</label>
+    <textarea id="tell-message" placeholder="Type your message..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideTell()">Cancel</button>
+      <button class="btn btn-primary" onclick="doTell()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Inbox Message Modal -->
+<div class="modal-bg" id="modal-send">
+  <div class="modal">
+    <h3>Send message to <span id="send-room-name"></span></h3>
+    <label>From</label>
+    <input id="send-from" placeholder="e.g. @main" value="@main">
+    <label>Message</label>
+    <textarea id="send-message" placeholder="Inbox message..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideSend()">Cancel</button>
+      <button class="btn btn-primary" onclick="doSend()">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<div class="dot" id="dot"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ansi_up@6.0.2/ansi_up.min.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const $=id=>document.getElementById(id);
+const api=p=>fetch(p).then(r=>r.json());
+const enc=encodeURIComponent;
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function cap(s){return s[0].toUpperCase()+s.slice(1)}
+
+// ---------------------------------------------------------------------------
+// Toast notifications
+// ---------------------------------------------------------------------------
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  $('toast-container').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let projects = {};
+let selected = null;
+let expanded = {};
+let selVersion = 0;
+let sidebarCollapsed = false;
+let currentTab = 'overview';
+let refreshTimer = null;
+let roomsCache = [];
+
+// Terminal state
+let termRoom = null;
+let xterm = null;
+let fitAddon = null;
+let ws = null;
+let wsConnected = false;
+let pollTimer = null;
+let termMode = null; // 'ws' | 'poll' | null
+let ansi = null;
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+async function init() {
+  try { ansi = new AnsiUp(); } catch(e) {}
+  projects = await api('/api/projects');
+  renderSidebar();
+  const names = Object.keys(projects);
+  const saved = localStorage.getItem('orc-selected-project');
+  if (names.length && !selected) await sel(saved && names.includes(saved) ? saved : names[0]);
+  startRefresh();
+}
+
+function startRefresh() {
+  stopRefresh();
+  refreshTimer = setInterval(refresh, 5000);
+}
+
+function stopRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar
+// ---------------------------------------------------------------------------
+function renderSidebar() {
+  const el = $('project-list');
+  el.innerHTML = '';
+  const names = Object.keys(projects);
+  if (!names.length) return;
+  const hdr = document.createElement('div');
+  hdr.className = 'group-header';
+  hdr.innerHTML = '<span class="group-arrow' + (sidebarCollapsed ? ' collapsed' : '') + '">&#9660;</span> Projects';
+  hdr.onclick = () => { sidebarCollapsed = !sidebarCollapsed; renderSidebar(); };
+  el.appendChild(hdr);
+  if (sidebarCollapsed) return;
+  for (const name of names) {
+    const d = document.createElement('div');
+    d.className = 'proj' + (selected === name ? ' active' : '');
+    d.textContent = name;
+    d.onclick = () => sel(name);
+    el.appendChild(d);
+  }
+}
+
+async function sel(name) {
+  selected = name;
+  expanded = {};
+  selVersion++;
+  localStorage.setItem('orc-selected-project', name);
+  renderSidebar();
+  $('topbar').classList.add('visible');
+  $('project-title').textContent = name;
+  switchTab('overview');
+  await loadRooms();
+}
+
+// ---------------------------------------------------------------------------
+// Tab switching
+// ---------------------------------------------------------------------------
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  if (tab === 'overview') {
+    $('content').style.display = '';
+    $('terminal-view').classList.remove('active');
+    termDisconnect();
+    startRefresh();
+  } else {
+    $('content').style.display = 'none';
+    $('terminal-view').classList.add('active');
+    stopRefresh();
+    populateRoomSelect();
+    if (!termRoom && roomsCache.length) {
+      const alive = roomsCache.find(r => r.tmux);
+      termRoom = alive ? alive.name : roomsCache[0].name;
+    }
+    if (termRoom) {
+      $('room-select').value = termRoom;
+      termConnect();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Room loading & rendering
+// ---------------------------------------------------------------------------
+async function loadRooms() {
+  if (!selected) return;
+  const v = selVersion;
+  const rooms = await api('/api/projects/' + enc(selected) + '/rooms');
+  if (v !== selVersion) return;
+  roomsCache = rooms;
+  if (currentTab === 'overview') renderRooms(rooms);
+}
+
+function renderRooms(rooms) {
+  $('placeholder').style.display = 'none';
+  const el = $('rooms');
+  el.style.display = 'grid';
+  el.innerHTML = rooms.map(r => {
+    const sc = 's-' + r.status;
+    const tc = r.tmux ? 'alive' : 'dead';
+    const tl = r.tmux ? '\u25cf live' : '\u25cb dead';
+    const n = esc(r.name);
+    const ne = n.replace(/'/g, "\\'");
+    const isMain = r.name === '@main';
+    return '<div class="card">' +
+      '<div class="card-head">' +
+        '<span class="card-name">' + n + '</span>' +
+        '<select class="status-select" onchange="doStatus(\'' + ne + '\',this.value)" title="Change status">' +
+          statusOptions(r.status) +
+        '</select>' +
+        '<span class="badge ' + sc + '">' + r.status + '</span>' +
+        '<span class="tmux ' + tc + '">' + tl + '</span>' +
+      '</div>' +
+      '<div class="meta">' +
+        '<span>' + esc(r.role) + '</span>' +
+        '<span>\u2709 ' + r.inbox_count + (r.unread_count ? ' (' + r.unread_count + ' new)' : '') + '</span>' +
+        '<span>\u25c6 ' + r.molecule_count + '</span>' +
+      '</div>' +
+      '<div class="card-actions">' +
+        (r.tmux
+          ? '<button class="btn btn-sm btn-danger" onclick="doKill(\'' + ne + '\')">Kill</button>' +
+            '<button class="btn btn-sm" onclick="openTerminal(\'' + ne + '\')">Terminal</button>'
+          : '<button class="btn btn-sm btn-green" onclick="doLaunch(\'' + ne + '\',\'' + esc(r.role) + '\')">Launch</button>'
+        ) +
+        '<button class="btn btn-sm" onclick="showTell(\'' + ne + '\')">Tell</button>' +
+        '<button class="btn btn-sm" onclick="showSend(\'' + ne + '\')">Send Message</button>' +
+        (isMain ? '' : '<button class="btn btn-sm btn-danger" onclick="doRmRoom(\'' + ne + '\')">Remove</button>') +
+      '</div>' +
+      '<button class="toggle" data-room="' + n + '" data-section="inbox">\u25bc Inbox</button>' +
+      '<div class="panel open" data-panel="' + n + '|inbox"></div>' +
+      '<button class="toggle" data-room="' + n + '" data-section="molecules">\u25bc Molecules</button>' +
+      '<div class="panel open" data-panel="' + n + '|molecules"></div>' +
+    '</div>';
+  }).join('');
+
+  for (const r of rooms) {
+    const n = esc(r.name);
+    expanded[n + '|inbox'] = true;
+    expanded[n + '|molecules'] = true;
+    const ip = document.querySelector('[data-panel="' + CSS.escape(n + '|inbox') + '"]');
+    const mp = document.querySelector('[data-panel="' + CSS.escape(n + '|molecules') + '"]');
+    if (ip) loadPanel(n, 'inbox', ip);
+    if (mp) loadPanel(n, 'molecules', mp);
+  }
+}
+
+function statusOptions(current) {
+  const opts = ['active', 'ready', 'blocked', 'done', 'exited'];
+  return opts.map(s =>
+    '<option value="' + s + '"' + (s === current ? ' selected' : '') + '>' + s + '</option>'
+  ).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Panel toggle & loading
+// ---------------------------------------------------------------------------
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.toggle');
+  if (!btn) return;
+  const room = btn.dataset.room;
+  const section = btn.dataset.section;
+  const key = room + '|' + section;
+  const panel = document.querySelector('[data-panel="' + CSS.escape(key) + '"]');
+  if (!panel) return;
+
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    btn.textContent = '\u25b6 ' + cap(section);
+    delete expanded[key];
+    return;
+  }
+
+  await loadPanel(room, section, panel);
+  panel.classList.add('open');
+  btn.textContent = '\u25bc ' + cap(section);
+  expanded[key] = true;
+});
+
+async function loadPanel(room, section, panel) {
+  if (section === 'inbox') {
+    const msgs = await api('/api/projects/' + enc(selected) + '/rooms/' + enc(room) + '/inbox');
+    if (!msgs.length) {
+      panel.innerHTML = '<div class="empty">No messages</div>';
+    } else {
+      panel.innerHTML = msgs.map(m =>
+        '<div class="msg' + (m.read ? '' : ' unread') + '">' +
+          '<span class="msg-from">' + esc(m.from || '?') + '</span>' +
+          '<span class="msg-ts">' + esc(m.ts || '') + '</span>' +
+          '<div class="msg-body">' + esc(m.message || '') + '</div>' +
+        '</div>'
+      ).join('');
+    }
+  } else {
+    const mols = await api('/api/projects/' + enc(selected) + '/rooms/' + enc(room) + '/molecules');
+    if (!mols.length) {
+      panel.innerHTML = '<div class="empty">No molecules</div>';
+    } else {
+      panel.innerHTML = mols.map(mol => {
+        let h = '<div class="mol-title">' + esc(mol.title || mol.id || 'Untitled');
+        if (mol.status) h += ' <span class="badge s-' + (mol.status === 'in_progress' ? 'active' : mol.status) + '">' + mol.status + '</span>';
+        h += '</div>';
+        if (mol.atoms) {
+          h += mol.atoms.map(a =>
+            '<div class="atom">' +
+              '<span class="atom-dot ' + (a.status || 'todo') + '"></span>' +
+              '<span>' + esc(a.title || a.id) + '</span>' +
+              '<span class="badge s-' + (a.status === 'in_progress' ? 'active' : (a.status || 'unknown')) + '">' +
+                (a.status || '?') +
+              '</span>' +
+            '</div>'
+          ).join('');
+        }
+        return h;
+      }).join('<hr class="mol-sep">');
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-refresh
+// ---------------------------------------------------------------------------
+async function refresh() {
+  if (currentTab !== 'overview') return;
+  const dot = $('dot');
+  dot.classList.add('loading');
+  try {
+    projects = await api('/api/projects');
+    renderSidebar();
+    if (selected && projects[selected]) {
+      await loadRooms();
+      for (const key of Object.keys(expanded)) {
+        const i = key.lastIndexOf('|');
+        const room = key.slice(0, i);
+        const section = key.slice(i + 1);
+        const panel = document.querySelector('[data-panel="' + CSS.escape(key) + '"]');
+        const btn = document.querySelector('.toggle[data-room="' + CSS.escape(room) + '"][data-section="' + CSS.escape(section) + '"]');
+        if (panel && btn) {
+          await loadPanel(room, section, panel);
+          panel.classList.add('open');
+          btn.textContent = '\u25bc ' + cap(section);
+        }
+      }
+    }
+  } catch(e) {}
+  dot.classList.remove('loading');
+}
+
+// ---------------------------------------------------------------------------
+// Room actions
+// ---------------------------------------------------------------------------
+async function doLaunch(room, role) {
+  toast('Launching ' + room + '...', 'info');
+  try {
+    const res = await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(room) + '/attach', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({role: role})
+    });
+    const data = await res.json();
+    if (data.error) toast('Error: ' + data.error, 'error');
+    else toast(room + ' launched', 'success');
+  } catch(e) { toast('Launch failed', 'error'); }
+  await loadRooms();
+}
+
+async function doKill(room) {
+  if (!confirm('Kill tmux session for "' + room + '"?')) return;
+  try {
+    const res = await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(room) + '/kill', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.error) toast('Error: ' + data.error, 'error');
+    else toast(room + ' killed', 'success');
+  } catch(e) { toast('Kill failed', 'error'); }
+  await loadRooms();
+}
+
+async function doStatus(room, status) {
+  try {
+    await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(room) + '/status', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: status})
+    });
+    toast(room + ' status \u2192 ' + status, 'success');
+  } catch(e) { toast('Status update failed', 'error'); }
+  await loadRooms();
+}
+
+async function doClean() {
+  try {
+    const res = await fetch('/api/projects/' + enc(selected) + '/clean', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.error) toast('Error: ' + data.error, 'error');
+    else {
+      const parts = [];
+      if (data.messages !== undefined) parts.push(data.messages + ' messages');
+      if (data.molecules !== undefined) parts.push(data.molecules + ' molecules');
+      toast('Cleaned: ' + (parts.length ? parts.join(', ') : 'done'), 'success');
+    }
+  } catch(e) { toast('Clean failed', 'error'); }
+  await loadRooms();
+}
+
+// ---------------------------------------------------------------------------
+// Add Room
+// ---------------------------------------------------------------------------
+function showAddRoom() { $('modal-add').classList.add('open'); $('add-room-name').value = ''; $('add-room-message').value = ''; $('add-room-name').focus(); }
+function hideAddRoom() { $('modal-add').classList.remove('open'); }
+
+async function doAddRoom(andLaunch) {
+  const name = $('add-room-name').value.trim();
+  const role = $('add-room-role').value;
+  const message = $('add-room-message').value.trim();
+  if (!name) return;
+  hideAddRoom();
+  try {
+    const res = await fetch('/api/projects/' + enc(selected) + '/rooms/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({room_name: name, role: role})
+    });
+    const data = await res.json();
+    if (data.error) { toast('Error: ' + data.error, 'error'); return; }
+    toast('Room ' + name + ' created', 'success');
+    if (andLaunch) {
+      const body = {role: role};
+      if (message) body.message = message;
+      await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(name) + '/attach', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      toast(name + ' launched', 'success');
+    }
+  } catch(e) { toast('Add room failed', 'error'); }
+  await loadRooms();
+}
+
+// ---------------------------------------------------------------------------
+// Tell Modal
+// ---------------------------------------------------------------------------
+let tellTarget = null;
+function showTell(room) { tellTarget = room; $('tell-room-name').textContent = room; $('tell-message').value = ''; $('modal-tell').classList.add('open'); $('tell-message').focus(); }
+function hideTell() { $('modal-tell').classList.remove('open'); }
+
+async function doTell() {
+  const msg = $('tell-message').value.trim();
+  if (!msg || !tellTarget) return;
+  hideTell();
+  try {
+    await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(tellTarget) + '/tell', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg})
+    });
+    toast('Sent to ' + tellTarget, 'success');
+  } catch(e) { toast('Tell failed', 'error'); }
+}
+
+// ---------------------------------------------------------------------------
+// Send Inbox Message Modal
+// ---------------------------------------------------------------------------
+let sendTarget = null;
+function showSend(room) { sendTarget = room; $('send-room-name').textContent = room; $('send-message').value = ''; $('modal-send').classList.add('open'); $('send-message').focus(); }
+function hideSend() { $('modal-send').classList.remove('open'); }
+
+async function doSend() {
+  const msg = $('send-message').value.trim();
+  const from = $('send-from').value.trim() || '@main';
+  if (!msg || !sendTarget) return;
+  hideSend();
+  try {
+    await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(sendTarget) + '/send', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, from: from})
+    });
+    toast('Message sent to ' + sendTarget, 'success');
+  } catch(e) { toast('Send failed', 'error'); }
+  await loadRooms();
+}
+
+// ---------------------------------------------------------------------------
+// Remove room
+// ---------------------------------------------------------------------------
+async function doRmRoom(name) {
+  if (!confirm('Remove room "' + name + '"? This will delete the worktree and kill its tmux session.')) return;
+  await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(name) + '/rm', {method: 'POST'});
+  toast(name + ' removed', 'success');
+  await loadRooms();
+}
+
+// ---------------------------------------------------------------------------
+// Terminal view
+// ---------------------------------------------------------------------------
+function populateRoomSelect() {
+  const sel = $('room-select');
+  sel.innerHTML = roomsCache.map(r =>
+    '<option value="' + esc(r.name) + '"' + (r.name === termRoom ? ' selected' : '') + '>' +
+      esc(r.name) + (r.tmux ? ' \u25cf' : '') +
+    '</option>'
+  ).join('');
+}
+
+function openTerminal(room) {
+  termRoom = room;
+  switchTab('terminal');
+}
+
+function termSelectRoom() {
+  termRoom = $('room-select').value;
+  termConnect();
+}
+
+function termConnect() {
+  termDisconnect();
+  updateConnBadge(null);
+  tryWebSocket();
+}
+
+function termDisconnect() {
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  wsConnected = false;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  termMode = null;
+  if (xterm) { xterm.dispose(); xterm = null; fitAddon = null; }
+  $('xterm-container').innerHTML = '';
+  $('xterm-container').style.display = '';
+  $('terminal-fallback').classList.remove('active');
+  $('terminal-fallback').innerHTML = '';
+}
+
+function updateConnBadge(mode) {
+  const el = $('conn-indicator');
+  el.className = 'conn-badge';
+  if (mode === 'ws') { el.textContent = 'WS'; el.classList.add('conn-ws'); }
+  else if (mode === 'poll') { el.textContent = 'Polling'; el.classList.add('conn-poll'); }
+  else { el.textContent = '--'; el.classList.add('conn-off'); }
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket terminal
+// ---------------------------------------------------------------------------
+function tryWebSocket() {
+  if (!selected || !termRoom) return;
+  const wsPort = parseInt(window.location.port, 10) + 1;
+  const wsUrl = 'ws://' + window.location.hostname + ':' + wsPort + '/terminal/' + enc(selected) + '/' + enc(termRoom);
+
+  initXterm();
+
+  ws = new WebSocket(wsUrl);
+  ws.onopen = () => {
+    wsConnected = true;
+    termMode = 'ws';
+    updateConnBadge('ws');
+  };
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'init' && xterm) {
+        xterm.write(msg.data || '');
+      } else if (msg.type === 'output' && xterm) {
+        xterm.clear();
+        xterm.write(msg.data || '');
+      }
+    } catch(e) {}
+  };
+  ws.onclose = () => {
+    wsConnected = false;
+    if (termMode === 'ws') {
+      // Try reconnect after 2s, fall back to polling if it fails again
+      setTimeout(() => {
+        if (currentTab === 'terminal' && termRoom) {
+          startPollingFallback();
+        }
+      }, 2000);
+    }
+  };
+  ws.onerror = () => {
+    // WebSocket not available, fall back to polling
+    wsConnected = false;
+    if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    startPollingFallback();
+  };
+}
+
+function initXterm() {
+  if (xterm) { xterm.dispose(); xterm = null; }
+  $('xterm-container').innerHTML = '';
+  $('xterm-container').style.display = '';
+  $('terminal-fallback').classList.remove('active');
+
+  xterm = new window.Terminal({
+    theme: {
+      background: '#0d1117',
+      foreground: '#e6edf3',
+      cursor: '#58a6ff',
+      selectionBackground: 'rgba(88,166,255,0.3)',
+      black: '#0d1117',
+      red: '#f85149',
+      green: '#3fb950',
+      yellow: '#d29922',
+      blue: '#58a6ff',
+      magenta: '#bc8cff',
+      cyan: '#76e3ea',
+      white: '#e6edf3',
+    },
+    fontSize: 14,
+    fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+    cursorBlink: true,
+    convertEol: true,
+    scrollback: 5000,
+  });
+
+  fitAddon = new window.FitAddon.FitAddon();
+  xterm.loadAddon(fitAddon);
+  xterm.open($('xterm-container'));
+  fitAddon.fit();
+
+  xterm.onKey(({key, domEvent}) => {
+    if (ws && wsConnected) {
+      if (domEvent.key === 'Enter') {
+        ws.send(JSON.stringify({type: 'key', data: 'Enter'}));
+      } else {
+        ws.send(JSON.stringify({type: 'input', data: key}));
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => { if (fitAddon) fitAddon.fit(); });
+}
+
+// ---------------------------------------------------------------------------
+// Polling fallback
+// ---------------------------------------------------------------------------
+function startPollingFallback() {
+  if (pollTimer) return;
+  termMode = 'poll';
+  updateConnBadge('poll');
+
+  // Hide xterm, show fallback pre
+  if (xterm) { xterm.dispose(); xterm = null; fitAddon = null; }
+  $('xterm-container').style.display = 'none';
+  $('terminal-fallback').classList.add('active');
+
+  pollTerminal();
+  pollTimer = setInterval(pollTerminal, 500);
+}
+
+async function pollTerminal() {
+  if (!selected || !termRoom) return;
+  try {
+    const res = await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/terminal');
+    const data = await res.json();
+    const content = data.content || data.data || (typeof data === 'string' ? data : '');
+    const fb = $('terminal-fallback');
+    if (ansi) {
+      fb.innerHTML = ansi.ansi_to_html(content);
+    } else {
+      fb.textContent = content;
+    }
+    fb.scrollTop = fb.scrollHeight;
+  } catch(e) {}
+}
+
+// ---------------------------------------------------------------------------
+// Terminal input bar (works in both WS and polling mode)
+// ---------------------------------------------------------------------------
+function termSendInput() {
+  const input = $('terminal-input');
+  const msg = input.value;
+  if (!msg) return;
+  input.value = '';
+
+  if (ws && wsConnected) {
+    ws.send(JSON.stringify({type: 'input', data: msg + '\n'}));
+  } else if (selected && termRoom) {
+    // Fallback: send via tell endpoint
+    fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(termRoom) + '/tell', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg})
+    }).then(() => toast('Sent via tell', 'info')).catch(() => toast('Send failed', 'error'));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Close modals on backdrop click
+// ---------------------------------------------------------------------------
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => {
+    if (e.target === bg) bg.classList.remove('open');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
+init();
+</script>
+</body>
+</html>
