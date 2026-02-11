@@ -23,7 +23,6 @@ body{
   outline:2px solid var(--accent);
   outline-offset:2px
 }
-.status-select:focus-visible{outline-offset:1px}
 .card:focus-visible{
   outline-offset:-2px;
   border-color:var(--accent)
@@ -135,16 +134,16 @@ body{
   padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;
   border-top:1px solid var(--border)
 }
-.status-select{
+.status-badge{
   padding:3px 8px;border-radius:6px;border:1px solid var(--border);
   background:var(--surface2);color:var(--text);font-size:12px;
-  font-family:inherit;cursor:pointer;transition:border-color .15s
+  font-family:inherit;display:inline-block
 }
-.status-select.ss-idle{border-color:var(--muted)}
-.status-select.ss-working{border-color:var(--accent)}
-.status-select.ss-blocked{border-color:var(--yellow)}
-.status-select.ss-done{border-color:var(--green)}
-.status-select.ss-exited{border-color:var(--red)}
+.status-badge.ss-idle{border-color:var(--muted)}
+.status-badge.ss-working{border-color:var(--accent)}
+.status-badge.ss-blocked{border-color:var(--yellow)}
+.status-badge.ss-done{border-color:var(--green)}
+.status-badge.ss-exited{border-color:var(--red)}
 .card-actions .btn-group{display:flex;gap:6px}
 .card-actions .btn-sep{width:1px;background:var(--border);align-self:stretch;margin:0 4px}
 
@@ -400,7 +399,6 @@ body{
     <div class="help-section">Card focused</div>
     <table>
       <tr><td>t</td><td>Open terminal</td></tr>
-      <tr><td>s</td><td>Focus status select</td></tr>
       <tr><td>m</td><td>Send inbox message</td></tr>
     </table>
   </div>
@@ -587,9 +585,7 @@ function renderRooms(rooms) {
     return '<div class="card" tabindex="0" role="listitem" data-room="' + n + '">' +
       '<div class="card-head">' +
         '<span class="card-name">' + n + '</span>' +
-        '<select class="status-select ss-' + r.status + '" onchange="doStatus(\'' + ne + '\',this.value)" title="Change status">' +
-          statusOptions(r.status) +
-        '</select>' +
+        '<span class="status-badge ss-' + r.status + '">' + esc(r.status) + '</span>' +
       '</div>' +
       '<div class="meta">' +
         '<span>' + esc(r.role) + '</span>' +
@@ -635,12 +631,6 @@ function renderRooms(rooms) {
   }
 }
 
-function statusOptions(current) {
-  const opts = ['idle', 'working', 'blocked', 'done', 'exited'];
-  return opts.map(s =>
-    '<option value="' + s + '"' + (s === current ? ' selected' : '') + '>' + s + '</option>'
-  ).join('');
-}
 
 // ---------------------------------------------------------------------------
 // Panel toggle & loading
@@ -766,16 +756,6 @@ async function doKill(room) {
   await loadRooms();
 }
 
-async function doStatus(room, status) {
-  try {
-    await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(room) + '/status', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({status: status})
-    });
-    toast(room + ' status \u2192 ' + status, 'success');
-  } catch(e) { toast('Status update failed', 'error'); }
-  await loadRooms();
-}
 
 async function doClean() {
   try {
@@ -1257,12 +1237,6 @@ document.addEventListener('keydown', e => {
     if (key === 'Enter' || key === 't') {
       e.preventDefault();
       openTerminal(roomName);
-      return;
-    }
-    if (key === 's') {
-      e.preventDefault();
-      const sel = card.querySelector('.status-select');
-      if (sel) sel.focus();
       return;
     }
     if (key === 'm') {
