@@ -109,6 +109,8 @@ class RoomSession:
     def start_claude(self, role_prompt):
         """Start Claude Code in this room's window."""
         cmd = "claude"
+        if os.environ.get("ORC_SANDBOX"):
+            cmd += " --dangerously-skip-permissions"
         if role_prompt:
             escaped = role_prompt.replace("'", "'\\''")
             cmd += f" --append-system-prompt $'{escaped}'"

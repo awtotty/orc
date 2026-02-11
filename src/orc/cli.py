@@ -273,3 +273,91 @@ def dash_server(port):
     """Internal: run the web server directly."""
     from orc.web import run_server
     run_server(port=port)
+
+
+# ---------------------------------------------------------------------------
+# Start (sandbox shortcut)
+# ---------------------------------------------------------------------------
+
+
+@main.command()
+def start():
+    """Start the sandbox (if needed) and attach to it."""
+    from orc.sandbox import start as sb_start, attach as sb_attach, _is_running
+    if not _is_running():
+        sb_start()
+    sb_attach()
+
+
+@main.command()
+def stop():
+    """Stop the sandbox."""
+    from orc.sandbox import stop as sb_stop
+    sb_stop()
+
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+
+@main.command()
+def config():
+    """Show orc configuration."""
+    from orc.config import config_path, load
+
+    path = config_path()
+    exists = os.path.isfile(path)
+    click.echo(f"Config: {path}")
+    click.echo(f"Exists: {exists}")
+    click.echo()
+
+    try:
+        cfg = load()
+    except Exception as e:
+        click.echo(f"Error parsing config: {e}", err=True)
+        sys.exit(1)
+
+    for section, values in cfg.items():
+        click.echo(f"[{section}]")
+        for key, val in values.items():
+            click.echo(f"  {key} = {val}")
+
+
+# ---------------------------------------------------------------------------
+# Sandbox
+# ---------------------------------------------------------------------------
+
+
+@main.group()
+def sandbox():
+    """Manage the Docker sandbox environment."""
+    pass
+
+
+@sandbox.command(name="start")
+def sandbox_start():
+    """Build and start the sandbox container."""
+    from orc.sandbox import start as sb_start
+    sb_start()
+
+
+@sandbox.command(name="stop")
+def sandbox_stop():
+    """Stop and remove the sandbox container."""
+    from orc.sandbox import stop as sb_stop
+    sb_stop()
+
+
+@sandbox.command(name="status")
+def sandbox_status():
+    """Show sandbox status."""
+    from orc.sandbox import status as sb_status
+    sb_status()
+
+
+@sandbox.command(name="attach")
+def sandbox_attach():
+    """Attach to the sandbox container with a bash shell."""
+    from orc.sandbox import attach as sb_attach
+    sb_attach()

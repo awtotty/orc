@@ -2,8 +2,8 @@ import os
 
 ROLES_DIR = ".roles"
 
-# roles/ directory at the orc repo root
-_ORC_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# orc repo root — prefer explicit env var (set by sandbox), fall back to __file__
+_ORC_ROOT = os.environ.get("ORC_ROOT") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ROLES_PATH = os.path.join(_ORC_ROOT, "roles")
 
 

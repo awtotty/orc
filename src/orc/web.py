@@ -614,7 +614,8 @@ class OrcHandler(BaseHTTPRequestHandler):
 
 
 def run_server(port=7777):
-    server = HTTPServer(("127.0.0.1", port), OrcHandler)
+    host = "0.0.0.0" if os.environ.get("ORC_SANDBOX") else "127.0.0.1"
+    server = HTTPServer((host, port), OrcHandler)
     print(f"orc dashboard \u2192 http://localhost:{port}")
     try:
         server.serve_forever()
