@@ -68,6 +68,8 @@ def start():
     run_cmd = [
         "docker", "run", "-d",
         "--name", CONTAINER_NAME,
+        # Stable hostname so Claude Code auth tokens persist across restarts
+        "--hostname", CONTAINER_NAME,
         # Mount orc root at same absolute path (project + worktrees + git refs all work)
         "-v", f"{orc_root}:{orc_root}",
         # Mount Claude Code binary from host (keeps version in sync, preserves auth)
