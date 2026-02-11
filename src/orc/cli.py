@@ -275,11 +275,10 @@ def dash_server(port):
     run_server(port=port)
 
 
-@main.command(name="_tmux-init", hidden=True)
-def tmux_init():
-    """Internal: bootstrap tmux session (bash + dash) and attach."""
+def _do_tmux_setup():
+    """Create tmux session and dashboard window if they don't exist."""
     import subprocess
-    from orc.tmux import session_exists, open_window, select_window, attach_orc_session
+    from orc.tmux import session_exists
 
     proj = _require_project(None)
 
@@ -297,6 +296,20 @@ def tmux_init():
         )
         click.echo("orc dashboard -> http://localhost:7777")
 
+
+@main.command(name="_tmux-setup", hidden=True)
+def tmux_setup():
+    """Internal: create tmux session and dashboard window (no attach)."""
+    _do_tmux_setup()
+
+
+@main.command(name="_tmux-init", hidden=True)
+def tmux_init():
+    """Internal: bootstrap tmux session (bash + dash) and attach."""
+    import subprocess
+
+    _do_tmux_setup()
+
     import os
     subprocess.run(
         ["tmux", "select-window", "-t", "orc:^"],
@@ -311,12 +324,17 @@ def tmux_init():
 
 
 @main.command()
-def start():
+@click.option("-d", "--detached", is_flag=True, help="Run headless (web UI only, no terminal)")
+def start(detached):
     """Start the sandbox (if needed) and attach to it."""
-    from orc.sandbox import start as sb_start, attach as sb_attach, _is_running
+    from orc.sandbox import start as sb_start, attach as sb_attach, init as sb_init, _is_running
     if not _is_running():
         sb_start()
-    sb_attach()
+    if detached:
+        sb_init()
+        click.echo("orc dashboard -> http://localhost:7777")
+    else:
+        sb_attach()
 
 
 @main.command()

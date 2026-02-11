@@ -195,6 +195,17 @@ def status():
         click.echo("Sandbox: stopped")
 
 
+def init():
+    """Initialize tmux session and dashboard inside the sandbox (non-interactive)."""
+    if not _is_running():
+        click.echo("Sandbox is not running. Run `orc sandbox start` first.", err=True)
+        sys.exit(1)
+    subprocess.run(
+        ["docker", "exec", CONTAINER_NAME, "orc", "_tmux-setup"],
+        check=True,
+    )
+
+
 def attach():
     """Attach to the sandbox container with tmux (bash + dash)."""
     if not _is_running():
