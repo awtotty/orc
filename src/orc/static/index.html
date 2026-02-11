@@ -910,8 +910,8 @@ function tryWebSocket() {
     wsConnected = true;
     termMode = 'ws';
     updateConnBadge('ws');
-    // Tell server our terminal size
     sendResize();
+    if (xterm) xterm.focus();
   };
   ws.onmessage = (ev) => {
     if (!xterm) return;
@@ -1031,6 +1031,7 @@ function startPollingFallback() {
   lastPollContent = '';
   pollTerminal();
   pollTimer = setInterval(pollTerminal, 300);
+  if (xterm) xterm.focus();
 }
 
 async function pollTerminal() {
