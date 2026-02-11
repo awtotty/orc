@@ -361,6 +361,21 @@ body{
   </div>
 </div>
 
+<!-- Add Project Modal -->
+<div class="modal-bg" id="modal-add-project">
+  <div class="modal">
+    <h3>Add Project</h3>
+    <label>Path <span style="color:var(--red)">*</span></label>
+    <input id="add-project-path" placeholder="/absolute/path/to/git/repo">
+    <label>Name (optional, defaults to directory name)</label>
+    <input id="add-project-name" placeholder="e.g. my-project">
+    <div class="modal-actions">
+      <button class="btn" onclick="hideAddProject()">Cancel</button>
+      <button class="btn btn-primary" onclick="doAddProject()">Add</button>
+    </div>
+  </div>
+</div>
+
 <!-- Keyboard Help Overlay -->
 <div id="keyboard-help">
   <div class="help-panel">
@@ -372,6 +387,7 @@ body{
       <tr><td>j / &darr;</td><td>Next room card</td></tr>
       <tr><td>k / &uarr;</td><td>Previous room card</td></tr>
       <tr><td>Enter</td><td>Open terminal for focused card</td></tr>
+      <tr><td>p</td><td>Add project</td></tr>
       <tr><td>Escape</td><td>Close modal / help</td></tr>
       <tr><td>?</td><td>Toggle this help</td></tr>
     </table>
@@ -475,7 +491,8 @@ function renderSidebar() {
   if (!names.length) return;
   const hdr = document.createElement('div');
   hdr.className = 'group-header';
-  hdr.innerHTML = '<span class="group-arrow' + (sidebarCollapsed ? ' collapsed' : '') + '">&#9660;</span> Projects';
+  hdr.innerHTML = '<span class="group-arrow' + (sidebarCollapsed ? ' collapsed' : '') + '">&#9660;</span> Projects' +
+    '<button class="btn-icon" style="margin-left:auto;width:22px;height:22px;font-size:14px" onclick="event.stopPropagation();showAddProject()" title="Add project (p)">+</button>';
   hdr.onclick = () => { sidebarCollapsed = !sidebarCollapsed; renderSidebar(); };
   el.appendChild(hdr);
   if (sidebarCollapsed) return;
@@ -795,6 +812,31 @@ async function doAddRoom(andLaunch) {
 }
 
 // ---------------------------------------------------------------------------
+// Add Project
+// ---------------------------------------------------------------------------
+function showAddProject() { $('modal-add-project').classList.add('open'); $('add-project-path').value = ''; $('add-project-name').value = ''; $('add-project-path').focus(); }
+function hideAddProject() { $('modal-add-project').classList.remove('open'); }
+
+async function doAddProject() {
+  const path = $('add-project-path').value.trim();
+  const name = $('add-project-name').value.trim();
+  if (!path) return;
+  hideAddProject();
+  try {
+    const res = await fetch('/api/projects/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({path, name: name || undefined})
+    });
+    const data = await res.json();
+    if (data.error) { toast('Error: ' + data.error, 'error'); return; }
+    toast('Project ' + data.name + ' added', 'success');
+    projects = await api('/api/projects');
+    renderSidebar();
+    await sel(data.name);
+  } catch(e) { toast('Add project failed', 'error'); }
+}
+
+// ---------------------------------------------------------------------------
 // Tell Modal
 // ---------------------------------------------------------------------------
 let tellTarget = null;
@@ -1097,6 +1139,8 @@ function toggleHelp() {
 let modalTrigger = null;
 
 // Wrap modal open functions to track trigger
+const _origShowAddProject = showAddProject;
+showAddProject = function() { modalTrigger = document.activeElement; _origShowAddProject(); };
 const _origShowAddRoom = showAddRoom;
 showAddRoom = function() { modalTrigger = document.activeElement; _origShowAddRoom(); };
 const _origShowTell = showTell;
@@ -1105,6 +1149,8 @@ const _origShowSend = showSend;
 showSend = function(room) { modalTrigger = document.activeElement; _origShowSend(room); };
 
 // Wrap modal close functions to restore focus
+const _origHideAddProject = hideAddProject;
+hideAddProject = function() { _origHideAddProject(); if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; } };
 const _origHideAddRoom = hideAddRoom;
 hideAddRoom = function() { _origHideAddRoom(); if (modalTrigger) { modalTrigger.focus(); modalTrigger = null; } };
 const _origHideTell = hideTell;
@@ -1135,6 +1181,7 @@ document.addEventListener('keydown', e => {
     if (isModalOpen()) {
       e.preventDefault();
       // Close modals via their hide functions (to restore focus)
+      if ($('modal-add-project').classList.contains('open')) { hideAddProject(); return; }
       if ($('modal-add').classList.contains('open')) { hideAddRoom(); return; }
       if ($('modal-tell').classList.contains('open')) { hideTell(); return; }
       if ($('modal-send').classList.contains('open')) { hideSend(); return; }
@@ -1155,6 +1202,7 @@ document.addEventListener('keydown', e => {
   if (key === '1') { e.preventDefault(); switchTab('overview'); return; }
   if (key === '2') { e.preventDefault(); switchTab('terminal'); return; }
   if (key === '?') { e.preventDefault(); toggleHelp(); return; }
+  if (key === 'p') { e.preventDefault(); showAddProject(); return; }
 
   // Card navigation
   if (key === 'j' || key === 'ArrowDown') {

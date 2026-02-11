@@ -142,6 +142,7 @@ ROUTES = [
 ]
 
 POST_ROUTES = [
+    (re.compile(r"^/api/projects/add$"), "add_project"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/add$"), "add_room"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/rm$"), "rm_room"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/attach$"), "attach"),
@@ -187,6 +188,24 @@ class OrcHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) if length else b"{}"
         return json.loads(raw)
+
+    def _post_add_project(self):
+        body = self._read_body()
+        path = body.get("path", "").strip()
+        name = body.get("name", "").strip() or None
+        if not path:
+            self._json({"error": "path is required"}, 400)
+            return
+        try:
+            registered = Universe().add_project(path, name=name)
+        except ValueError as e:
+            self._json({"error": str(e)}, 400)
+            return
+        # Auto-initialize if not yet an orc project
+        real = os.path.realpath(path)
+        if not os.path.isdir(os.path.join(real, ".orc")):
+            OrcProject(real).init()
+        self._json({"ok": True, "name": registered})
 
     def _post_add_room(self, project_name):
         projects = discover_projects()
