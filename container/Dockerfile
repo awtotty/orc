@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-venv \
     ripgrep \
+    unzip \
     neovim \
     nodejs \
     npm \
@@ -30,6 +31,11 @@ RUN npm install -g pnpm \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && mv /root/.local/bin/uv /usr/local/bin/ \
     && mv /root/.local/bin/uvx /usr/local/bin/
+
+# Install Bun (needed by claude-mem plugin)
+RUN curl -fsSL https://bun.sh/install | bash \
+    && cp /root/.bun/bin/bun /usr/local/bin/ \
+    && rm -rf /root/.bun
 
 # Install Claude Code (native binary)
 RUN curl -fsSL https://claude.ai/install.sh | bash \

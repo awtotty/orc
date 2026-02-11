@@ -8,7 +8,7 @@ import click
 
 from orc.room import Room
 from orc.roles import default_role_content, ROLES_DIR
-from orc.tmux import RoomSession, open_window, attach_orc_session
+from orc.tmux import RoomSession, open_window, window_exists, attach_orc_session
 
 
 def find_project_root(start=None):
@@ -139,6 +139,12 @@ class OrcProject:
                 import time
                 time.sleep(3)
                 tmux.send_keys(message)
+
+        # Launch dashboard as a tmux window if not already running
+        dash_name = ".orc-dash"
+        if not window_exists(dash_name):
+            open_window(dash_name, self.root, "orc _dash-server --port 7777")
+            click.echo("orc dashboard -> http://localhost:7777")
 
         tmux.attach()
         attach_orc_session()
