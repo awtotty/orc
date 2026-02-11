@@ -50,10 +50,8 @@ RUN curl -fsSL https://bun.sh/install | bash \
     && cp /root/.bun/bin/bun /usr/local/bin/ \
     && rm -rf /root/.bun
 
-# Install Claude Code (native binary)
-RUN curl -fsSL https://claude.ai/install.sh | bash \
-    && cp -L /root/.local/bin/claude /usr/local/bin/claude \
-    && rm -rf /root/.local/share/claude
+# Claude Code binary is mounted from the host at runtime
+# (keeps version in sync with host and preserves auth tokens)
 
 # Create agent user matching host UID/GID for file permissions
 ARG UID=1000

@@ -153,6 +153,7 @@ POST_ROUTES = [
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/status$"), "set_status"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/kill$"), "kill"),
     (re.compile(r"^/api/projects/([^/]+)/clean$"), "clean"),
+    (re.compile(r"^/api/shutdown$"), "shutdown"),
 ]
 
 
@@ -420,6 +421,11 @@ class OrcHandler(BaseHTTPRequestHandler):
         proj = OrcProject(projects[project_name])
         messages, molecules = proj.clean()
         self._json({"messages": messages, "molecules": molecules})
+
+    def _post_shutdown(self):
+        import signal
+        self._json({"ok": True})
+        os.kill(1, signal.SIGTERM)
 
     def _post_kill(self, project_name, room_name):
         projects = discover_projects()

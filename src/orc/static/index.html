@@ -296,6 +296,7 @@ body{
     <button class="btn btn-sm" onclick="showAddRoom()">+ Add Room</button>
     <div style="flex:1"></div>
     <button class="btn-icon" onclick="toggleHelp()" title="Keyboard shortcuts (?)">?</button>
+    <button class="btn btn-sm btn-danger" onclick="doShutdown()" title="Stop sandbox">Shutdown</button>
   </div>
 
   <div id="content">
@@ -772,6 +773,14 @@ async function doClean() {
     }
   } catch(e) { toast('Clean failed', 'error'); }
   await loadRooms();
+}
+
+async function doShutdown() {
+  if (!confirm('Stop the sandbox?\n\nThis will stop all running agents and the web UI.')) return;
+  try {
+    await fetch('/api/shutdown', {method: 'POST'});
+    toast('Sandbox stopping...', 'success');
+  } catch(e) { /* expected — server dies */ }
 }
 
 // ---------------------------------------------------------------------------

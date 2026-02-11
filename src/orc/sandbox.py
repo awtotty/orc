@@ -70,6 +70,8 @@ def start():
         "--name", CONTAINER_NAME,
         # Mount orc root at same absolute path (project + worktrees + git refs all work)
         "-v", f"{orc_root}:{orc_root}",
+        # Mount Claude Code binary from host (keeps version in sync, preserves auth)
+        "-v", f"{home}/.local/bin/claude:/usr/local/bin/claude:ro",
         # Mount Claude credentials for OAuth
         "-v", f"{home}/.claude:{home}/.claude",
         # Set HOME so ~ resolves correctly
