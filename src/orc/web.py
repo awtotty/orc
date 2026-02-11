@@ -143,6 +143,7 @@ ROUTES = [
 
 POST_ROUTES = [
     (re.compile(r"^/api/projects/add$"), "add_project"),
+    (re.compile(r"^/api/projects/([^/]+)/rm$"), "rm_project"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/add$"), "add_room"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/rm$"), "rm_room"),
     (re.compile(r"^/api/projects/([^/]+)/rooms/([^/]+)/attach$"), "attach"),
@@ -206,6 +207,14 @@ class OrcHandler(BaseHTTPRequestHandler):
         if not os.path.isdir(os.path.join(real, ".orc")):
             OrcProject(real).init()
         self._json({"ok": True, "name": registered})
+
+    def _post_rm_project(self, project_name):
+        try:
+            Universe().remove_project(project_name)
+        except ValueError as e:
+            self._json({"error": str(e)}, 400)
+            return
+        self._json({"ok": True})
 
     def _post_add_room(self, project_name):
         projects = discover_projects()

@@ -52,10 +52,16 @@ body{
 .group-arrow.collapsed{transform:rotate(-90deg)}
 .proj{
   padding:10px 20px 10px 34px;cursor:pointer;border-left:3px solid transparent;
-  font-size:14px;transition:all .15s
+  font-size:14px;transition:all .15s;display:flex;align-items:center
 }
 .proj:hover{background:var(--surface2)}
 .proj.active{background:var(--surface2);border-left-color:var(--accent);color:var(--accent)}
+.proj .proj-rm{
+  margin-left:auto;opacity:0;border:none;background:none;color:var(--muted);
+  cursor:pointer;font-size:12px;padding:2px 4px;border-radius:4px;transition:all .15s;flex-shrink:0
+}
+.proj:hover .proj-rm{opacity:1}
+.proj .proj-rm:hover{color:var(--red);background:rgba(248,81,73,.1)}
 #project-list{overflow-y:auto;flex:1}
 
 /* Main layout */
@@ -499,7 +505,15 @@ function renderSidebar() {
   for (const name of names) {
     const d = document.createElement('div');
     d.className = 'proj' + (selected === name ? ' active' : '');
-    d.textContent = name;
+    const span = document.createElement('span');
+    span.textContent = name;
+    d.appendChild(span);
+    const rm = document.createElement('button');
+    rm.className = 'proj-rm';
+    rm.textContent = '\u00d7';
+    rm.title = 'Remove project';
+    rm.onclick = (e) => { e.stopPropagation(); doRmProject(name); };
+    d.appendChild(rm);
     d.onclick = () => sel(name);
     el.appendChild(d);
   }
@@ -834,6 +848,21 @@ async function doAddProject() {
     renderSidebar();
     await sel(data.name);
   } catch(e) { toast('Add project failed', 'error'); }
+}
+
+async function doRmProject(name) {
+  if (!confirm('Remove project "' + name + '" from the dashboard?\n\nThis only removes the symlink — the repository itself is not deleted.')) return;
+  try {
+    const res = await fetch('/api/projects/' + encodeURIComponent(name) + '/rm', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.error) { toast('Error: ' + data.error, 'error'); return; }
+    toast('Project ' + name + ' removed', 'success');
+    projects = await api('/api/projects');
+    if (selected === name) { selected = null; const names = Object.keys(projects); if (names.length) await sel(names[0]); }
+    renderSidebar();
+  } catch(e) { toast('Remove project failed', 'error'); }
 }
 
 // ---------------------------------------------------------------------------
