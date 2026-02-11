@@ -76,11 +76,12 @@ def add(room_name, role, project):
 @click.argument("room", default="@main")
 @click.option("-r", "--role", default="worker", help="Role if creating a new room (default: worker)")
 @click.option("-m", "--message", default=None, help="Initial message to send to the agent")
+@click.option("-b", "--background", is_flag=True, default=False, help="Launch room without switching tmux focus")
 @click.option("-p", "--project", default=None, help="Project name in projects/")
-def attach(room, role, message, project):
+def attach(room, role, message, background, project):
     """Attach to a room. Creates it if it doesn't exist, launches agent if not running."""
     proj = _require_project(project)
-    proj.attach(room, role=role, message=message)
+    proj.attach(room, role=role, message=message, background=background)
 
 
 @main.command()

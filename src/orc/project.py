@@ -112,7 +112,7 @@ class OrcProject:
         # Copy Claude Code permissions to worktree
         self._copy_claude_settings(worktree_path)
 
-    def attach(self, room_name, role="worker", message=None):
+    def attach(self, room_name, role="worker", message=None, background=False):
         room = Room(self.orc_dir, room_name)
 
         # If room doesn't exist, create it first
@@ -149,7 +149,7 @@ class OrcProject:
             if os.path.exists(role_path):
                 with open(role_path) as f:
                     role_prompt = f.read()
-            tmux.create(cwd=cwd)
+            tmux.create(cwd=cwd, background=background)
             tmux.start_claude(role_prompt)
             room.set_status("working")
 
@@ -158,8 +158,9 @@ class OrcProject:
                 time.sleep(3)
                 tmux.send_keys(message)
 
-        tmux.attach()
-        attach_orc_session()
+        if not background:
+            tmux.attach()
+            attach_orc_session()
 
     def tell(self, room_name, message):
         """Send a message to a running agent's tmux session."""

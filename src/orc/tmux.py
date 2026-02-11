@@ -27,13 +27,15 @@ def ensure_orc_session():
         )
 
 
-def open_window(name, cwd, command=None):
+def open_window(name, cwd, command=None, background=False):
     """Open a new window in the orc tmux session."""
     ensure_orc_session()
     cmd = [
         "tmux", "new-window", "-t", f"{ORC_SESSION}:", "-n", name,
-        "-P", "-F", "#{session_name}:#{window_index}",
     ]
+    if background:
+        cmd.append("-d")
+    cmd.extend(["-P", "-F", "#{session_name}:#{window_index}"])
     if cwd:
         cmd.extend(["-c", cwd])
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -79,9 +81,9 @@ class RoomSession:
         self.room_name = room_name
         self.window_name = f"{project_name}-{room_name.lstrip('@')}"
 
-    def create(self, cwd=None):
+    def create(self, cwd=None, background=False):
         """Create a window for this room in the orc session."""
-        open_window(self.window_name, cwd)
+        open_window(self.window_name, cwd, background=background)
 
     def attach(self):
         """Switch to this room's window, or create it if gone."""
