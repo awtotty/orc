@@ -16,4 +16,4 @@ orc = "orc.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-orc = ["static/**/*"]
+orc = ["web/static/**/*"]

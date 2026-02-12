@@ -391,7 +391,7 @@ def run_server(port=7777):
     try:
         import asyncio
         import threading
-        from orc.terminal import run_terminal_server
+        from orc.web.terminal import run_terminal_server
 
         def _run_ws():
             loop = asyncio.new_event_loop()
