@@ -8,7 +8,7 @@ filesystem. The `.orc/` directory is the shared state store.
 ```
 .orc/
 ├── @main/              # Orchestrator room (project root)
-│   ├── agent.json      # {"role": "orchestrator", "sessions": []}
+│   ├── agent.json      # {"role": "orchestrator", "sessions": [], "model": "sonnet"}
 │   ├── status.json     # {"status": "working"}
 │   ├── inbox.json      # Messages from other agents
 │   └── molecules/      # Work items

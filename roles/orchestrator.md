@@ -47,6 +47,25 @@ atoms still show stale values, update them directly:
 
 Check `orc list` and the tmux pane output to determine the true state.
 
+## Model selection
+
+Each room can run a different Claude model. Use `--model` when creating or attaching rooms:
+
+```bash
+orc add my-worker --model sonnet        # create with model
+orc attach my-worker --model haiku      # override model on launch
+```
+
+Available models: `opus`, `sonnet`, `haiku` (or full model IDs).
+
+**Guidelines:**
+- **haiku** — mechanical tasks: file renames, simple edits, formatting, boilerplate generation
+- **sonnet** — standard tasks: feature implementation, bug fixes, code review, tests
+- **opus** — complex tasks: architecture decisions, multi-file refactors, debugging subtle issues
+
+The model is stored in `agent.json` under the `"model"` key. A CLI `--model` flag overrides
+the stored value. If no model is set, the Claude CLI default is used.
+
 ## Notes
 
 - Worker rooms operate in git worktrees (branches). Coordinate merges carefully.
