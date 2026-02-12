@@ -17,6 +17,12 @@ To assign work to a worker room:
 1. Create molecule files in `.orc/{room}/molecules/`
 2. Send an inbox message to `.orc/{room}/inbox.json` telling them to check for new work
 
+**Keep molecules concise.** Every token in a molecule is read by the worker (often repeatedly).
+- Atom titles: imperative, under 10 words (e.g., "Add --model flag to cli.py")
+- Atom descriptions: 1-3 sentences max. State *what* to do and *where*, not *how* — workers can read the code themselves
+- Reference file paths instead of pasting code
+- Don't repeat context the worker already has from its role prompt
+
 ## Cross-project coordination
 
 Your project may be part of a **universe** with other orc projects. You can:
