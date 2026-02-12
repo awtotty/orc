@@ -11,6 +11,7 @@ DEFAULTS = {
         "mounts": [],
         "env": [],
         "editor": "nvim",
+        "backends": [],
     },
     "agent": {
         "backend": "claude",
