@@ -120,14 +120,7 @@ class RoomSession:
                 capture_output=True,
             )
 
-    def start_claude(self, role_prompt, model=None):
-        """Start Claude Code in this room's window."""
-        cmd = "claude"
-        if model:
-            cmd += f" --model {model}"
-        if os.environ.get("ORC_SANDBOX"):
-            cmd += " --dangerously-skip-permissions"
-        if role_prompt:
-            escaped = role_prompt.replace("'", "'\\''")
-            cmd += f" --append-system-prompt $'{escaped}'"
+    def start_agent(self, backend, role_prompt="", model=None, cwd=None):
+        """Start a coding agent in this room's window."""
+        cmd = backend.build_command(role_prompt, model=model, cwd=cwd)
         self.send_keys(cmd)

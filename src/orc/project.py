@@ -6,6 +6,7 @@ import sys
 
 import click
 
+from orc.backend import resolve_backend
 from orc.room import Room
 from orc.roles import default_role_content, ROLES_DIR
 from orc.tmux import RoomSession, open_window, window_exists, attach_orc_session, session_exists
@@ -76,7 +77,7 @@ class OrcProject:
             with open(gitignore_path, "w") as f:
                 f.write(entry + "\n")
 
-    def add_room(self, room_name, role="worker", model=None):
+    def add_room(self, room_name, role="worker", model=None, backend=None):
         """Create room files and worktree. Does not launch an agent."""
         # Validate name
         if room_name.startswith("@"):
@@ -94,6 +95,12 @@ class OrcProject:
         # Create room files
         room.create(role=role, status="idle", model=model)
 
+        # Store backend override in agent.json
+        if backend:
+            agent_data = room.read_agent()
+            agent_data["backend"] = backend
+            room._write_json("agent.json", agent_data)
+
         # Create git worktree
         worktree_path = os.path.join(self.orc_dir, ".worktrees", room_name)
         try:
@@ -109,16 +116,17 @@ class OrcProject:
             room.delete()
             sys.exit(1)
 
-        # Copy Claude Code permissions to worktree
-        self._copy_claude_settings(worktree_path)
+        # Copy agent settings to worktree
+        backend_obj = self._resolve_backend(room.read_agent())
+        self._copy_agent_settings(worktree_path, backend_obj)
 
-    def attach(self, room_name, role="worker", model=None, message=None, background=False):
+    def attach(self, room_name, role="worker", model=None, backend=None, message=None, background=False):
         room = Room(self.orc_dir, room_name)
 
         # If room doesn't exist, create it first
         if not room.exists():
             click.echo(f"Room '{room_name}' not found, creating it...")
-            self.add_room(room_name, role=role, model=model)
+            self.add_room(room_name, role=role, model=model, backend=backend)
 
         # Ensure tmux session and dashboard exist
         dash_name = ".orc-dash"
@@ -146,13 +154,14 @@ class OrcProject:
             r = agent.get("role", "worker")
             # Model resolution: explicit param > agent.json > default
             effective_model = model or agent.get("model")
+            backend_obj = self._resolve_backend(agent)
             role_path = os.path.join(self.orc_dir, ROLES_DIR, f"{r}.md")
             role_prompt = ""
             if os.path.exists(role_path):
                 with open(role_path) as f:
                     role_prompt = f.read()
             tmux.create(cwd=cwd, background=background)
-            tmux.start_claude(role_prompt, model=effective_model)
+            tmux.start_agent(backend_obj, role_prompt, model=effective_model, cwd=cwd)
             room.set_status("working")
 
             if message:
@@ -218,20 +227,21 @@ class OrcProject:
                 agent = room.read_agent()
                 role = agent.get("role", "unknown")
                 model = agent.get("model", "")
+                backend = agent.get("backend", "")
                 tmux = RoomSession(self.project_name, entry)
                 alive = tmux.is_alive()
-                rooms.append((entry, role, status, alive, model))
+                rooms.append((entry, role, status, alive, model, backend))
 
         if not rooms:
             click.echo("No rooms found.")
             return
 
         # Header
-        click.echo(f"{'ROOM':<20} {'ROLE':<15} {'MODEL':<10} {'STATUS':<12} {'TMUX'}")
-        click.echo("-" * 70)
-        for name, role, status, alive, model in rooms:
+        click.echo(f"{'ROOM':<20} {'ROLE':<15} {'MODEL':<10} {'BACKEND':<10} {'STATUS':<12} {'TMUX'}")
+        click.echo("-" * 80)
+        for name, role, status, alive, model, backend in rooms:
             tmux_status = "alive" if alive else "dead"
-            click.echo(f"{name:<20} {role:<15} {model or '-':<10} {status:<12} {tmux_status}")
+            click.echo(f"{name:<20} {role:<15} {model or '-':<10} {backend or '-':<10} {status:<12} {tmux_status}")
 
     def remove_room(self, room_name):
         if room_name == "@main":
@@ -296,14 +306,20 @@ class OrcProject:
 
         return total_messages, total_molecules
 
-    def _copy_claude_settings(self, worktree_path):
-        """Copy .claude/settings.local.json from project root to worktree."""
-        src = os.path.join(self.root, ".claude", "settings.local.json")
-        if not os.path.exists(src):
-            return
-        dst_dir = os.path.join(worktree_path, ".claude")
-        os.makedirs(dst_dir, exist_ok=True)
-        shutil.copy2(src, os.path.join(dst_dir, "settings.local.json"))
+    def _resolve_backend(self, agent_data):
+        """Resolve backend from agent.json and project config."""
+        from orc.config import load
+        return resolve_backend(agent_data, load())
+
+    def _copy_agent_settings(self, worktree_path, backend):
+        """Copy backend-specific settings files from project root to worktree."""
+        for rel_path in backend.settings_files:
+            src = os.path.join(self.root, rel_path)
+            if not os.path.exists(src):
+                continue
+            dst = os.path.join(worktree_path, rel_path)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
 
     def _room_cwd(self, room_name):
         if room_name == "@main":

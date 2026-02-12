@@ -5,6 +5,8 @@ import os
 import subprocess
 from datetime import datetime, timezone
 
+from orc.backend import resolve_backend
+from orc.config import load as load_config
 from orc.project import OrcProject, find_project_root
 from orc.room import Room
 from orc.roles import ROLES_DIR
@@ -72,6 +74,7 @@ def get_rooms(project_path):
                 "name": entry,
                 "role": agent.get("role", "unknown"),
                 "model": agent.get("model"),
+                "backend": agent.get("backend"),
                 "status": status_data.get("status", "unknown"),
                 "tmux": tmux_alive(project_name, entry),
                 "inbox_count": len(inbox),
@@ -170,7 +173,7 @@ def tmux_alive(project_name, room_name):
 
 
 def attach_room(project_path, room_name, role="worker", model=None, message=None):
-    """Ensure a room exists, has a tmux window, and is running Claude.
+    """Ensure a room exists, has a tmux window, and is running an agent.
 
     This is the headless/API version — it does NOT attach the terminal
     to the tmux session (callers like the CLI can do that separately).
@@ -201,13 +204,14 @@ def attach_room(project_path, room_name, role="worker", model=None, message=None
         r = agent.get("role", "worker")
         # Model resolution: explicit param > agent.json > default
         effective_model = model or agent.get("model")
+        backend = resolve_backend(agent, load_config())
         role_path = os.path.join(proj.orc_dir, ROLES_DIR, f"{r}.md")
         role_prompt = ""
         if os.path.exists(role_path):
             with open(role_path) as f:
                 role_prompt = f.read()
         tmux.create(cwd=cwd)
-        tmux.start_claude(role_prompt, model=effective_model)
+        tmux.start_agent(backend, role_prompt, model=effective_model, cwd=cwd)
         room.set_status("working")
 
         if message:

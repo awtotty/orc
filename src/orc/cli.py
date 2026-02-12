@@ -64,29 +64,33 @@ def init(force, project):
 @main.command()
 @click.argument("room_name")
 @click.option("-r", "--role", default="worker", help="Role for the agent (default: worker)")
-@click.option("--model", default=None, help="Claude model (opus, sonnet, haiku, or full model ID)")
+@click.option("--model", default=None, help="Model (opus, sonnet, haiku, or full model ID)")
+@click.option("--backend", default=None, help="Agent backend (claude, codex, aider)")
 @click.option("-p", "--project", default=None, help="Project name in projects/")
-def add(room_name, role, model, project):
+def add(room_name, role, model, backend, project):
     """Add a new room (files + worktree). Use 'attach' to launch the agent."""
     proj = _require_project(project)
-    proj.add_room(room_name, role=role, model=model)
+    proj.add_room(room_name, role=role, model=model, backend=backend)
     msg = f"Created room '{room_name}' with role '{role}'"
     if model:
         msg += f" and model '{model}'"
+    if backend:
+        msg += f" using backend '{backend}'"
     click.echo(msg)
 
 
 @main.command()
 @click.argument("room", default="@main")
 @click.option("-r", "--role", default="worker", help="Role if creating a new room (default: worker)")
-@click.option("--model", default=None, help="Claude model (opus, sonnet, haiku, or full model ID)")
+@click.option("--model", default=None, help="Model (opus, sonnet, haiku, or full model ID)")
+@click.option("--backend", default=None, help="Agent backend (claude, codex, aider)")
 @click.option("-m", "--message", default=None, help="Initial message to send to the agent")
 @click.option("-b", "--background", is_flag=True, default=False, help="Launch room without switching tmux focus")
 @click.option("-p", "--project", default=None, help="Project name in projects/")
-def attach(room, role, model, message, background, project):
+def attach(room, role, model, backend, message, background, project):
     """Attach to a room. Creates it if it doesn't exist, launches agent if not running."""
     proj = _require_project(project)
-    proj.attach(room, role=role, model=model, message=message, background=background)
+    proj.attach(room, role=role, model=model, backend=backend, message=message, background=background)
 
 
 @main.command()

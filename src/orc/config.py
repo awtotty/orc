@@ -12,6 +12,9 @@ DEFAULTS = {
         "env": [],
         "editor": "nvim",
     },
+    "agent": {
+        "backend": "claude",
+    },
 }
 
 
