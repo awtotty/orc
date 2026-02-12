@@ -120,9 +120,11 @@ class RoomSession:
                 capture_output=True,
             )
 
-    def start_claude(self, role_prompt):
+    def start_claude(self, role_prompt, model=None):
         """Start Claude Code in this room's window."""
         cmd = "claude"
+        if model:
+            cmd += f" --model {model}"
         if os.environ.get("ORC_SANDBOX"):
             cmd += " --dangerously-skip-permissions"
         if role_prompt:

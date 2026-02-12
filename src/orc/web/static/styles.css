@@ -118,6 +118,7 @@ body{
 .s-done{background:rgba(63,185,80,.15);color:var(--green)}
 .s-exited{background:rgba(248,81,73,.15);color:var(--red)}
 .s-unknown{background:rgba(139,148,158,.15);color:var(--muted)}
+.model-badge{font-size:11px;padding:1px 6px;border-radius:4px;background:rgba(188,140,255,.15);color:var(--magenta,#bc8cff);font-weight:500}
 .tmux{font-size:12px}
 .tmux.alive{color:var(--green)}
 .tmux.dead{color:var(--muted)}

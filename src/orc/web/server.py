@@ -149,12 +149,13 @@ class OrcHandler(BaseHTTPRequestHandler):
         body = self._read_body()
         room_name = body.get("room_name", "").strip()
         role = body.get("role", "worker").strip() or "worker"
+        model = body.get("model", "").strip() or None
         if not room_name:
             self._json({"error": "room_name is required"}, 400)
             return
         proj = OrcProject(projects[project_name])
         try:
-            proj.add_room(room_name, role=role)
+            proj.add_room(room_name, role=role, model=model)
         except SystemExit:
             self._json({"error": f"failed to add room '{room_name}'"}, 400)
             return
@@ -180,9 +181,10 @@ class OrcHandler(BaseHTTPRequestHandler):
             return
         body = self._read_body()
         role = body.get("role", "worker")
+        model = body.get("model") or None
         message = body.get("message")
         try:
-            attach_room(projects[project_name], room_name, role=role, message=message)
+            attach_room(projects[project_name], room_name, role=role, model=model, message=message)
         except ValueError as e:
             self._json({"error": str(e)}, 400)
             return

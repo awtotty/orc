@@ -76,7 +76,7 @@ class OrcProject:
             with open(gitignore_path, "w") as f:
                 f.write(entry + "\n")
 
-    def add_room(self, room_name, role="worker"):
+    def add_room(self, room_name, role="worker", model=None):
         """Create room files and worktree. Does not launch an agent."""
         # Validate name
         if room_name.startswith("@"):
@@ -92,7 +92,7 @@ class OrcProject:
             sys.exit(1)
 
         # Create room files
-        room.create(role=role, status="idle")
+        room.create(role=role, status="idle", model=model)
 
         # Create git worktree
         worktree_path = os.path.join(self.orc_dir, ".worktrees", room_name)
@@ -112,13 +112,13 @@ class OrcProject:
         # Copy Claude Code permissions to worktree
         self._copy_claude_settings(worktree_path)
 
-    def attach(self, room_name, role="worker", message=None, background=False):
+    def attach(self, room_name, role="worker", model=None, message=None, background=False):
         room = Room(self.orc_dir, room_name)
 
         # If room doesn't exist, create it first
         if not room.exists():
             click.echo(f"Room '{room_name}' not found, creating it...")
-            self.add_room(room_name, role=role)
+            self.add_room(room_name, role=role, model=model)
 
         # Ensure tmux session and dashboard exist
         dash_name = ".orc-dash"
@@ -144,13 +144,15 @@ class OrcProject:
             cwd = self._room_cwd(room_name)
             agent = room.read_agent()
             r = agent.get("role", "worker")
+            # Model resolution: explicit param > agent.json > default
+            effective_model = model or agent.get("model")
             role_path = os.path.join(self.orc_dir, ROLES_DIR, f"{r}.md")
             role_prompt = ""
             if os.path.exists(role_path):
                 with open(role_path) as f:
                     role_prompt = f.read()
             tmux.create(cwd=cwd, background=background)
-            tmux.start_claude(role_prompt)
+            tmux.start_claude(role_prompt, model=effective_model)
             room.set_status("working")
 
             if message:
@@ -215,20 +217,21 @@ class OrcProject:
                 status = room.read_status().get("status", "unknown")
                 agent = room.read_agent()
                 role = agent.get("role", "unknown")
+                model = agent.get("model", "")
                 tmux = RoomSession(self.project_name, entry)
                 alive = tmux.is_alive()
-                rooms.append((entry, role, status, alive))
+                rooms.append((entry, role, status, alive, model))
 
         if not rooms:
             click.echo("No rooms found.")
             return
 
         # Header
-        click.echo(f"{'ROOM':<20} {'ROLE':<15} {'STATUS':<12} {'TMUX'}")
-        click.echo("-" * 60)
-        for name, role, status, alive in rooms:
+        click.echo(f"{'ROOM':<20} {'ROLE':<15} {'MODEL':<10} {'STATUS':<12} {'TMUX'}")
+        click.echo("-" * 70)
+        for name, role, status, alive, model in rooms:
             tmux_status = "alive" if alive else "dead"
-            click.echo(f"{name:<20} {role:<15} {status:<12} {tmux_status}")
+            click.echo(f"{name:<20} {role:<15} {model or '-':<10} {status:<12} {tmux_status}")
 
     def remove_room(self, room_name):
         if room_name == "@main":

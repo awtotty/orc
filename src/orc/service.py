@@ -71,6 +71,7 @@ def get_rooms(project_path):
             {
                 "name": entry,
                 "role": agent.get("role", "unknown"),
+                "model": agent.get("model"),
                 "status": status_data.get("status", "unknown"),
                 "tmux": tmux_alive(project_name, entry),
                 "inbox_count": len(inbox),
@@ -168,7 +169,7 @@ def tmux_alive(project_name, room_name):
 # ---------------------------------------------------------------------------
 
 
-def attach_room(project_path, room_name, role="worker", message=None):
+def attach_room(project_path, room_name, role="worker", model=None, message=None):
     """Ensure a room exists, has a tmux window, and is running Claude.
 
     This is the headless/API version — it does NOT attach the terminal
@@ -182,7 +183,7 @@ def attach_room(project_path, room_name, role="worker", message=None):
 
     if not room.exists():
         try:
-            proj.add_room(room_name, role=role)
+            proj.add_room(room_name, role=role, model=model)
         except SystemExit:
             raise ValueError(f"Failed to create room '{room_name}'")
 
@@ -198,13 +199,15 @@ def attach_room(project_path, room_name, role="worker", message=None):
         cwd = proj._room_cwd(room_name)
         agent = room.read_agent()
         r = agent.get("role", "worker")
+        # Model resolution: explicit param > agent.json > default
+        effective_model = model or agent.get("model")
         role_path = os.path.join(proj.orc_dir, ROLES_DIR, f"{r}.md")
         role_prompt = ""
         if os.path.exists(role_path):
             with open(role_path) as f:
                 role_prompt = f.read()
         tmux.create(cwd=cwd)
-        tmux.start_claude(role_prompt)
+        tmux.start_claude(role_prompt, model=effective_model)
         room.set_status("working")
 
         if message:

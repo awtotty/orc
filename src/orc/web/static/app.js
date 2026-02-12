@@ -176,6 +176,7 @@ function renderRooms(rooms) {
       '</div>' +
       '<div class="meta">' +
         '<span>' + esc(r.role) + '</span>' +
+        (r.model ? '<span class="model-badge" title="Model">' + esc(r.model) + '</span>' : '') +
         '<span class="tmux ' + tc + '" title="tmux session">' + tl + '</span>' +
         '<span title="Inbox messages">\u2709 ' + r.inbox_count + (r.unread_count ? ' (' + r.unread_count + ' new)' : '') + '</span>' +
         '<span title="Molecules">\u25c6 ' + r.molecule_count + '</span>' +
@@ -372,25 +373,29 @@ async function doShutdown() {
 // ---------------------------------------------------------------------------
 // Add Room
 // ---------------------------------------------------------------------------
-function showAddRoom() { $('modal-add').classList.add('open'); $('add-room-name').value = ''; $('add-room-message').value = ''; $('add-room-name').focus(); }
+function showAddRoom() { $('modal-add').classList.add('open'); $('add-room-name').value = ''; $('add-room-model').value = ''; $('add-room-message').value = ''; $('add-room-name').focus(); }
 function hideAddRoom() { $('modal-add').classList.remove('open'); }
 
 async function doAddRoom(andLaunch) {
   const name = $('add-room-name').value.trim();
   const role = $('add-room-role').value;
+  const model = $('add-room-model').value;
   const message = $('add-room-message').value.trim();
   if (!name) return;
   hideAddRoom();
   try {
+    const addBody = {room_name: name, role: role};
+    if (model) addBody.model = model;
     const res = await fetch('/api/projects/' + enc(selected) + '/rooms/add', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({room_name: name, role: role})
+      body: JSON.stringify(addBody)
     });
     const data = await res.json();
     if (data.error) { toast('Error: ' + data.error, 'error'); return; }
     toast('Room ' + name + ' created', 'success');
     if (andLaunch) {
       const body = {role: role};
+      if (model) body.model = model;
       if (message) body.message = message;
       await fetch('/api/projects/' + enc(selected) + '/rooms/' + enc(name) + '/attach', {
         method: 'POST', headers: {'Content-Type': 'application/json'},

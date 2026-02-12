@@ -14,11 +14,14 @@ class Room:
             os.path.join(self.path, "agent.json")
         )
 
-    def create(self, role="worker", status="idle"):
+    def create(self, role="worker", status="idle", model=None):
         os.makedirs(self.path, exist_ok=True)
         os.makedirs(os.path.join(self.path, "molecules"), exist_ok=True)
 
-        self._write_json("agent.json", {"role": role, "sessions": []})
+        agent_data = {"role": role, "sessions": []}
+        if model:
+            agent_data["model"] = model
+        self._write_json("agent.json", agent_data)
         self._write_json("status.json", {"status": status})
         self._write_json("inbox.json", [])
 
