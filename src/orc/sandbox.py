@@ -151,6 +151,7 @@ def start():
         ["docker", "exec", "-u", "0", CONTAINER_NAME,
          "bash", "-c",
          "echo 'orc-sandbox-stable-machine-id-00000000' > /etc/machine-id"
+         " && mkdir -p /var/lib/dbus"
          " && echo 'orc-sandbox-stable-machine-id-00000000' > /var/lib/dbus/machine-id"],
         check=True,
     )
